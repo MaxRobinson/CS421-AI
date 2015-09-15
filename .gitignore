@@ -5,9 +5,9 @@ __pycache__/
 #IDE stuff
 *.idea/
 
+
 # C extensions
 *.so
-$
 
 # Distribution / packaging
 .Python
@@ -58,4 +58,8 @@ coverage.xml
 docs/_build/
 
 # PyBuilder
+<<<<<<< HEAD
 target/
+=======
+target/
+>>>>>>> 728bef01df34261868d3a98d87d86b505026f1a8
