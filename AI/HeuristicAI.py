@@ -127,11 +127,11 @@ class AIPlayer(Player):
             ant = getAntAt(currentState, antMove.coordList[0])
             if ant.type == WORKER:
                 return self.moveWorker(currentState, ant, workerMoves, foodCoordList)
-            if ant.type == QUEEN:
+            elif ant.type == QUEEN:
                 queenMove = self.moveQueen(currentState, ant, queenMoves, foodCoordList, buildingList)
                 if queenMove is not None:
                     return queenMove
-            if ant.type == SOLDIER:
+            elif ant.type == SOLDIER:
                 soldierMove = self.moveSoldier(currentState, ant, soldierMoves, self.getOpponentId())
                 return soldierMove
 
