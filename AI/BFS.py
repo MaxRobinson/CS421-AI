@@ -174,7 +174,6 @@ class AIPlayer(Player):
                 ourInventory.constr.append(Building(move.coordList[-1], TUNNEL, self.playerId))
                 ourInventory.foodCount -= 3
         else:
-            print("IS ENDING TURN")
             return gameState
 
         return gameState
@@ -192,12 +191,12 @@ class AIPlayer(Player):
     def isValidAttack(self, attackingAnt, attackCoord):
         if attackCoord == None:
             return None
-        #we know we have an enemy ant
+        # we know we have an enemy ant
         range = UNIT_STATS[attackingAnt.type][RANGE]
         diffX = abs(attackingAnt.coords[0] - attackCoord[0])
         diffY = abs(attackingAnt.coords[1] - attackCoord[1])
 
-        #pythagoras would be proud
+        # pythagoras would be proud
         if range ** 2 >= diffX ** 2 + diffY ** 2:
             #return True if within range
             return True
@@ -208,11 +207,11 @@ class AIPlayer(Player):
         attackedAntList = []
         for ant in enemyInv.ants:
             if self.isValidAttack(antToMove, ant.coords):
-                #keep track of valid attack coords (flipped for player two)
-                attackedAntList.append(self.state.coordLookup(ant.coords, self.playerId))
+                # keep track of valid ants to attack
+                attackedAntList.append(ant)
 
-        if attackedAntList != []:
-            antToAttack = attackedAntList[random.randint(0, len(attackedAntList))]
+        if len(attackedAntList) > 0:
+            antToAttack = attackedAntList[random.randint(0, len(attackedAntList)-1)]
             # subtract health
             if antToMove == SOLDIER or antToMove == QUEEN:
                 antToAttack.health -= 2
