@@ -204,7 +204,6 @@ class AIPlayer(Player):
         else:
             return False
 
-
     def attackSequence(self, enemyInv, antToMove ):
         attackedAntList = []
         for ant in enemyInv.ants:
@@ -223,7 +222,6 @@ class AIPlayer(Player):
             if antToAttack.health <= 0:
                 enemyInv.ants.remove(antToAttack)
 
-
     def pickUpFood(self, gameState, ourInventory, antToMove):
         # check if food there
         if getConstrAt(gameState, antToMove.coords) is not None:
@@ -238,7 +236,6 @@ class AIPlayer(Player):
                     and antToMove.carrying:
                 antToMove.carrying = False
                 ourInventory.foodCount += 1
-
 
     def evaluateState(self, gameState):
         return random.random()
