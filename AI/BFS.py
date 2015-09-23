@@ -253,17 +253,18 @@ class AIPlayer(Player):
 
         sumScore = 0
         sumScore += self.evalNumAnts(ourInv, enemyInv)
-        # sumScore += self.evalType(ourInv)
-        # sumScore += self.evalAntsHealth(ourInv, enemyInv)
-        # sumScore += self.evalFood(ourInv, enemyInv)
-        # sumScore += self.evalQueenThreat(ourInv, enemyInv)
+        sumScore += self.evalType(ourInv)
+        sumScore += self.evalAntsHealth(ourInv, enemyInv)
+        sumScore += self.evalFood(ourInv, enemyInv)
+        sumScore += self.evalQueenThreat(ourInv, enemyInv)
         sumScore += self.evalWorkerCarrying(gameState, ourInv)
         sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
-        # sumScore += self.evalQueenPosition(ourInv)
+        sumScore += self.evalQueenPosition(ourInv)
 
-        # score = sumScore/8  # divide by number of catagories to
-        score = sumScore/3
-
+        score = sumScore/8  # divide by number of catagories to
+        # score = sumScore
+        # print "eval Worker Not Carying Score ", self.evalWorkerNotCarrying(gameState, ourInv)
+        # print "eval Worker Carrying Score ", self.evalWorkerCarrying(gameState, ourInv)
         return score
 
     def checkIfWon(self, ourInv, enemyInv):
@@ -303,14 +304,15 @@ class AIPlayer(Player):
         # Find worker ants not carrying
         notCarryingWorkers = []
         for ant in ourInv.ants:
-            if not ant.carrying and ant.type == WORKER:
+            if (not ant.carrying) and ant.type == WORKER:
                 notCarryingWorkers.append(ant)
+        print "not Carrying Worker length: ", len(notCarryingWorkers)
 
         antDistScore = 0
         for ant in notCarryingWorkers:
             minDist = 1000
             foodList = []
-            for constr in ourInv.constrs:
+            for constr in gameState.inventories[2].constrs:
                 if constr.type == FOOD:
                     foodList.append(constr)
 
@@ -321,7 +323,8 @@ class AIPlayer(Player):
             antDistScore += self.scoreDist(minDist, 14)
 
         if len(notCarryingWorkers) > 0:
-            score = antDistScore / len(notCarryingWorkers)
+            print "antDistScore: ", antDistScore
+            score = antDistScore / float(len(notCarryingWorkers))
         else:
             return 0
 
@@ -352,7 +355,7 @@ class AIPlayer(Player):
                 minDist = antHillDist
             antDistScore += self.scoreDist(minDist, 14)
         if len(CarryingWorkers) > 0:
-            score = antDistScore / len(CarryingWorkers)
+            score = antDistScore / float(len(CarryingWorkers))
         else:
             return 0
 
@@ -403,7 +406,8 @@ class AIPlayer(Player):
         if dist > bound:
             dist = bound
         #return score
-        return (-dist + bound)/bound
+        print "antDistScore: ", (-dist + bound)/float(bound)
+        return (-dist + bound)/float(bound)
 
     def dist(self, gameState, ant, dest):
         # return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
