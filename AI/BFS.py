@@ -99,15 +99,21 @@ class AIPlayer(Player):
         moves = listAllLegalMoves(currentState)
         score = -1
         moveToMake = None
+        moveDict = {}
         for move in moves:
             newGameState = self.expandNode(currentState, move)
             tempScore = self.evaluateState(newGameState)
-            # we win
-            if tempScore == 1:
-                return move
-            if tempScore > score:
-                score = tempScore
-                moveToMake = move
+            if tempScore not in moveDict:
+                moveDict[tempScore] = list()
+            moveDict[tempScore].append(move)
+
+        maxKey = 0
+        for key in moveDict:
+            if key > maxKey:
+                maxKey = key
+
+        # Choose random move that has a key value of maxKey Value
+        moveToMake = moveDict[maxKey][random.randint(0, len(moveDict[maxKey])-1)]
 
         if moveToMake is None:
             return Move(END, None, None)
@@ -173,11 +179,11 @@ class AIPlayer(Player):
                 ourInventory.ants.append(Ant(move.coordList[-1], R_SOLDIER, self.playerId))
                 ourInventory.foodCount -= 2
             elif(move.buildType == TUNNEL):
-                ourInventory.constr.append(Building(move.coordList[-1], TUNNEL, self.playerId))
+                ourInventory.constrs.append(Building(move.coordList[-1], TUNNEL, self.playerId))
                 ourInventory.foodCount -= 3
         else:
-            #self.pickUpFood(gameState, ourInventory)
-            #self.dropOffFood(gameState, ourInventory)
+            self.pickUpFood(gameState, ourInventory)
+            self.dropOffFood(gameState, ourInventory)
             return gameState
 
         return gameState
@@ -262,9 +268,6 @@ class AIPlayer(Player):
         sumScore += self.evalQueenPosition(ourInv)
 
         score = sumScore/8  # divide by number of catagories to
-        # score = sumScore
-        # print "eval Worker Not Carying Score ", self.evalWorkerNotCarrying(gameState, ourInv)
-        # print "eval Worker Carrying Score ", self.evalWorkerCarrying(gameState, ourInv)
         return score
 
     def checkIfWon(self, ourInv, enemyInv):
@@ -306,7 +309,6 @@ class AIPlayer(Player):
         for ant in ourInv.ants:
             if (not ant.carrying) and ant.type == WORKER:
                 notCarryingWorkers.append(ant)
-        print "not Carrying Worker length: ", len(notCarryingWorkers)
 
         antDistScore = 0
         for ant in notCarryingWorkers:
@@ -324,7 +326,6 @@ class AIPlayer(Player):
             antDistScore += self.scoreDist(minDist, 14)
 
         if len(notCarryingWorkers) > 0:
-            print "antDistScore: ", antDistScore
             score = antDistScore / float(len(notCarryingWorkers))
         else:
             return 0
@@ -380,6 +381,10 @@ class AIPlayer(Player):
         workerCount = 0
         droneCount = 0
         for ant in ourInv.ants:
+            if ant.type == SOLDIER:
+                return 0
+            if ant.type == R_SOLDIER:
+                return 0
             if ant.type == WORKER:
                 workerCount += 1
             if ant.type == DRONE:
@@ -387,11 +392,16 @@ class AIPlayer(Player):
 
         if workerCount <= 1:
             return 0
+        elif workerCount >= 2:
+            return 0
 
-        if droneCount < workerCount * 2:
-            return .2
-        else:
-            return .7
+        # return droneCount in proportion to workers
+        ratio = droneCount / float(workerCount * 2)
+        if ratio > 2:
+            ration = 2
+        score = (1/2)*ratio
+
+        return score
 
     def evalQueenPosition(self, ourInv):
         queen = ourInv.getQueen()
@@ -416,12 +426,8 @@ class AIPlayer(Player):
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
         if dist == 0:
             return 1.0
-        if dist == 1:
-            return .8
         if dist > bound:
             dist = bound
-        #return score
-        print "antDistScore: ", (-dist + bound)/float(bound)
         return (-dist + bound)/float(bound)
 
     def dist(self, gameState, ant, dest):
