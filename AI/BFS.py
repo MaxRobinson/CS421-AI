@@ -256,7 +256,7 @@ class AIPlayer(Player):
         sumScore += self.evalType(ourInv)
         sumScore += self.evalAntsHealth(ourInv, enemyInv)
         sumScore += self.evalFood(ourInv, enemyInv)
-        sumScore += self.evalQueenThreat(ourInv, enemyInv)
+        sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
         sumScore += self.evalWorkerCarrying(gameState, ourInv)
         sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
         sumScore += self.evalQueenPosition(ourInv)
@@ -320,6 +320,7 @@ class AIPlayer(Player):
                 dist = self.dist(gameState, ant, food.coords)
                 if dist < minDist:
                     minDist = dist
+
             antDistScore += self.scoreDist(minDist, 14)
 
         if len(notCarryingWorkers) > 0:
@@ -330,8 +331,22 @@ class AIPlayer(Player):
 
         return score
 
-    def evalQueenThreat(self, ourInv, enemyInv):
-        return 1
+    def evalQueenThreat(self, gameState, ourInv, enemyInv):
+        droneList = []
+        for ant in ourInv.ants:
+            if ant.type == DRONE:
+                droneList.append(ant)
+
+        totalScore = 0
+        for drone in droneList:
+            dist = self.dist(gameState, drone, enemyInv.getQueen().coords)
+            totalScore += self.scoreDist(dist, 14)
+
+        score = 0
+        if len(droneList) > 0:
+            score = totalScore / float(len(droneList))
+
+        return score
 
     def evalWorkerCarrying(self, gameState, ourInv):
         # Find worker ants not carrying
