@@ -9,6 +9,7 @@ from Ant import UNIT_STATS
 from Move import Move
 from GameState import addCoords
 from AIPlayerUtils import *
+from math import *
 
 # # 
 # AIPlayer
@@ -101,6 +102,9 @@ class AIPlayer(Player):
         for move in moves:
             newGameState = self.expandNode(currentState, move)
             tempScore = self.evaluateState(newGameState)
+            # we win
+            if tempScore == 1:
+                return move
             if tempScore > score:
                 score = tempScore
                 moveToMake = move
@@ -225,7 +229,8 @@ class AIPlayer(Player):
         # check if food there
         if getConstrAt(gameState, antToMove.coords) is not None:
             if getConstrAt(gameState, antToMove.coords).type == FOOD and (not antToMove.carrying):
-                antToMove.carrying = True
+                #antToMove.carrying = True
+                t = 1
 
     def dropOffFood(self, gameState, ourInventory, antToMove):
         # check if landded on tunnel or anthill
@@ -233,8 +238,151 @@ class AIPlayer(Player):
             if getConstrAt(gameState, antToMove.coords).type == TUNNEL or \
                     getConstrAt(gameState, antToMove.coords).type == ANTHILL\
                     and antToMove.carrying:
-                antToMove.carrying = False
+                #antToMove.carrying = False
                 ourInventory.foodCount += 1
 
     def evaluateState(self, gameState):
-        return random.random()
+        opponentId = self.getOpponentId()
+        enemyInv = gameState.inventories[opponentId]
+        ourInv = gameState.inventories[self.playerId]
+        if self.checkIfWon(ourInv, enemyInv):
+            return 1.0
+        elif self.checkIfLose(ourInv, enemyInv):
+            return 0.0
+
+        sumScore = 0
+        sumScore += self.evalNumAnts(ourInv, enemyInv)
+        # sumScore += self.evalType(ourInv, enemyInv)
+        sumScore += self.evalAntsHealth(ourInv, enemyInv)
+        sumScore += self.evalFood(ourInv, enemyInv)
+        sumScore += self.evalQueenThreat(ourInv, enemyInv)
+        sumScore += self.evalAntHillThreat(ourInv, enemyInv)
+        sumScore += self.evalWorkerCarrying(ourInv)
+        sumScore += self.evalWorkerNotCarrying(ourInv)
+        #sumScore += self.evalWorkerDistToHome(ourInv)
+
+        score = sumScore/7  # divide by number of catagories to
+
+        return score
+
+    def checkIfWon(self, ourInv, enemyInv):
+        if enemyInv.getQueen() is None or ourInv.foodCount == 11:
+            return True
+        return False
+
+    #if queen near other ant attack
+    def checkIfLose(self, ourInv, enemyInv):
+        # bit more complicated....
+        if ourInv.getQueen() is None:
+            return True
+        return False
+
+    def evalNumAnts(self, ourInv, enemyInv):
+        ourNum = len(ourInv.ants)
+        enNum = len(enemyInv.ants)
+
+        # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
+        return self.diff(ourNum, enNum, 5)
+
+    def evalAntsHealth(self, ourInv, enemyInv):
+        ourHealth=-1
+        enHealth=-1
+        for oAnt in ourInv.ants:
+            ourHealth += oAnt.health
+        for eAnt in enemyInv.ants:
+            enHealth += eAnt.health
+
+        # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
+        return self.diff(ourHealth, enHealth, 5)
+
+    def evalFood(self, ourInv, enemyInv):
+        return self.diff(ourInv.foodCount, enemyInv.foodCount, 10)
+
+    def evalWorkerNotCarrying(self, ourInv):
+        # Find worker ants not carrying
+        notCarryingWorkers = []
+        for ant in ourInv.ants:
+            if not ant.carrying and ant.type == WORKER:
+                notCarryingWorkers.append(ant)
+        for ant in notCarryingWorkers:
+            print len(notCarryingWorkers)
+
+        antDistScore = 0
+        for ant in notCarryingWorkers:
+            minDist = 1000
+            foodList = []
+            for constr in ourInv.constrs:
+                if constr.type == FOOD:
+                    foodList.append(constr)
+
+            for food in foodList:
+                dist = self.dist(ant, food.coords)
+                if dist < minDist:
+                    minDist = dist
+            antDistScore += self.scoreDist(minDist, 14)
+
+        if len(notCarryingWorkers) > 0:
+            score = antDistScore / len(notCarryingWorkers)
+        else:
+            return 0
+
+        return score
+
+    def evalQueenThreat(self, ourInv, enemyInv):
+        return 1
+
+    def evalAntHillThreat(self, ourInv, enemyInv):
+        return 1
+
+    def evalWorkerCarrying(self, ourInv):
+        # Find worker ants not carrying
+        CarryingWorkers = []
+        for ant in ourInv.ants:
+            if ant.carrying and ant.type == WORKER:
+                CarryingWorkers.append(ant)
+
+        antDistScore = 0
+        for ant in CarryingWorkers:
+            minDist = None
+            tunnelDist = 10000
+            for tunnel in ourInv.getTunnels():
+                dist = self.dist(ant, tunnel.coords)
+                if dist < tunnelDist:
+                    tunnelDist = dist
+            antHillDist = self.dist(ant, ourInv.getAnthill().coords)
+            if tunnelDist < antHillDist:
+                minDist = tunnelDist
+            else:
+                minDist = antHillDist
+            antDistScore += self.scoreDist(minDist, 14)
+        if len(CarryingWorkers) > 0:
+            score = antDistScore / len(CarryingWorkers)
+        else:
+            return 0
+
+        return score
+
+    def diff(self, ours, theirs, bound):
+        # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
+        diff = ours - theirs
+        if diff >= bound:
+            diff = bound
+        elif diff <= bound:
+            diff = -bound
+
+        #return score
+        return diff/(bound*2) + 0.5
+
+    def scoreDist(self, dist, bound):
+        # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
+        if dist == 0:
+            return 1.0
+        if dist == 1:
+            return .8
+        if dist > bound:
+            dist = bound
+        #return score
+        return (-dist + bound)/bound
+
+    def dist(self, ant, dest):
+        return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
