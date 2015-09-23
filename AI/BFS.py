@@ -155,8 +155,6 @@ class AIPlayer(Player):
                 enemyInv = gameState.inventories[opponentId]
                 ## Checks if can attack.
                 self.attackSequence(enemyInv, antToMove)
-                self.pickUpFood(gameState, ourInventory, antToMove)
-                self.dropOffFood(gameState, ourInventory, antToMove)
 
         elif(move.moveType == BUILD):
             # just worried about building Ants and Tunnel
@@ -178,6 +176,8 @@ class AIPlayer(Player):
                 ourInventory.constr.append(Building(move.coordList[-1], TUNNEL, self.playerId))
                 ourInventory.foodCount -= 3
         else:
+            #self.pickUpFood(gameState, ourInventory)
+            #self.dropOffFood(gameState, ourInventory)
             return gameState
 
         return gameState
@@ -225,21 +225,22 @@ class AIPlayer(Player):
             if antToAttack.health <= 0:
                 enemyInv.ants.remove(antToAttack)
 
-    def pickUpFood(self, gameState, ourInventory, antToMove):
+    def pickUpFood(self, gameState, ourInventory):
         # check if food there
-        if getConstrAt(gameState, antToMove.coords) is not None:
-            if getConstrAt(gameState, antToMove.coords).type == FOOD and (not antToMove.carrying):
-                #antToMove.carrying = True
-                t = 1
+        for ant in ourInventory.ants:
+            if getConstrAt(gameState, ant.coords) is not None:
+                if getConstrAt(gameState, ant.coords).type == FOOD and (not ant.carrying):
+                    ant.carrying = True
 
-    def dropOffFood(self, gameState, ourInventory, antToMove):
+    def dropOffFood(self, gameState, ourInventory):
         # check if landded on tunnel or anthill
-        if getConstrAt(gameState, antToMove.coords) is not None:
-            if getConstrAt(gameState, antToMove.coords).type == TUNNEL or \
-                    getConstrAt(gameState, antToMove.coords).type == ANTHILL\
-                    and antToMove.carrying:
-                #antToMove.carrying = False
-                ourInventory.foodCount += 1
+        for ant in ourInventory.ants:
+            if getConstrAt(gameState, ant.coords) is not None:
+                if getConstrAt(gameState, ant.coords).type == TUNNEL or \
+                        getConstrAt(gameState, ant.coords).type == ANTHILL\
+                        and ant.carrying:
+                    ant.carrying = False
+                    ourInventory.foodCount += 1
 
     def evaluateState(self, gameState):
         opponentId = self.getOpponentId()
@@ -252,16 +253,16 @@ class AIPlayer(Player):
 
         sumScore = 0
         sumScore += self.evalNumAnts(ourInv, enemyInv)
-        # sumScore += self.evalType(ourInv, enemyInv)
-        sumScore += self.evalAntsHealth(ourInv, enemyInv)
-        sumScore += self.evalFood(ourInv, enemyInv)
-        sumScore += self.evalQueenThreat(ourInv, enemyInv)
-        sumScore += self.evalAntHillThreat(ourInv, enemyInv)
-        sumScore += self.evalWorkerCarrying(ourInv)
-        sumScore += self.evalWorkerNotCarrying(ourInv)
-        #sumScore += self.evalWorkerDistToHome(ourInv)
+        # sumScore += self.evalType(ourInv)
+        # sumScore += self.evalAntsHealth(ourInv, enemyInv)
+        # sumScore += self.evalFood(ourInv, enemyInv)
+        # sumScore += self.evalQueenThreat(ourInv, enemyInv)
+        sumScore += self.evalWorkerCarrying(gameState, ourInv)
+        sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
+        # sumScore += self.evalQueenPosition(ourInv)
 
-        score = sumScore/7  # divide by number of catagories to
+        # score = sumScore/8  # divide by number of catagories to
+        score = sumScore/3
 
         return score
 
@@ -298,14 +299,12 @@ class AIPlayer(Player):
     def evalFood(self, ourInv, enemyInv):
         return self.diff(ourInv.foodCount, enemyInv.foodCount, 10)
 
-    def evalWorkerNotCarrying(self, ourInv):
+    def evalWorkerNotCarrying(self, gameState, ourInv):
         # Find worker ants not carrying
         notCarryingWorkers = []
         for ant in ourInv.ants:
             if not ant.carrying and ant.type == WORKER:
                 notCarryingWorkers.append(ant)
-        for ant in notCarryingWorkers:
-            print len(notCarryingWorkers)
 
         antDistScore = 0
         for ant in notCarryingWorkers:
@@ -316,7 +315,7 @@ class AIPlayer(Player):
                     foodList.append(constr)
 
             for food in foodList:
-                dist = self.dist(ant, food.coords)
+                dist = self.dist(gameState, ant, food.coords)
                 if dist < minDist:
                     minDist = dist
             antDistScore += self.scoreDist(minDist, 14)
@@ -331,10 +330,7 @@ class AIPlayer(Player):
     def evalQueenThreat(self, ourInv, enemyInv):
         return 1
 
-    def evalAntHillThreat(self, ourInv, enemyInv):
-        return 1
-
-    def evalWorkerCarrying(self, ourInv):
+    def evalWorkerCarrying(self, gameState, ourInv):
         # Find worker ants not carrying
         CarryingWorkers = []
         for ant in ourInv.ants:
@@ -346,10 +342,10 @@ class AIPlayer(Player):
             minDist = None
             tunnelDist = 10000
             for tunnel in ourInv.getTunnels():
-                dist = self.dist(ant, tunnel.coords)
+                dist = self.dist(gameState, ant, tunnel.coords)
                 if dist < tunnelDist:
                     tunnelDist = dist
-            antHillDist = self.dist(ant, ourInv.getAnthill().coords)
+            antHillDist = self.dist(gameState, ant, ourInv.getAnthill().coords)
             if tunnelDist < antHillDist:
                 minDist = tunnelDist
             else:
@@ -361,6 +357,31 @@ class AIPlayer(Player):
             return 0
 
         return score
+
+    def evalType(self, ourInv):
+        workerCount = 0
+        droneCount = 0
+        for ant in ourInv.ants:
+            if ant.type == WORKER:
+                workerCount += 1
+            if ant.type == DRONE:
+                droneCount += 1
+
+        if workerCount <= 1:
+            return 0
+
+        if droneCount < workerCount * 2:
+            return .2
+        else:
+            return .7
+
+    def evalQueenPosition(self, ourInv):
+        queen = ourInv.getQueen()
+        for food in ourInv.constrs:
+            if food.type == FOOD:
+                if queen.coords == food.coords:
+                    return 0
+        return 1
 
     def diff(self, ours, theirs, bound):
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
@@ -384,5 +405,6 @@ class AIPlayer(Player):
         #return score
         return (-dist + bound)/bound
 
-    def dist(self, ant, dest):
-        return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
+    def dist(self, gameState, ant, dest):
+        # return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
+        return stepsToReach(gameState, ant.coords, dest)
