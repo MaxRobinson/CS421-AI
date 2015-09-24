@@ -3,48 +3,42 @@ import random
 from Ant import *
 from Building import *
 from Player import *
-from Constants import *
-from Construction import CONSTR_STATS
-from Ant import UNIT_STATS
-from Move import Move
-from GameState import addCoords
 from AIPlayerUtils import *
-from math import *
 
-# # 
+# #
 # AIPlayer
 # Description: The responsbility of this class is to interact with the game by
 # deciding a valid move based on a given game state. This class has methods that
 # will be implemented by students in Dr. Nuxoll's AI course.
-# 
+#
 # Variables:
 #    playerId - The id of the player.
-# # 
+# #
 class AIPlayer(Player):
 
     # __init__
     # Description: Creates a new Player
-    # 
+    #
     # Parameters:
     #    inputPlayerId - The id to give the new player (int)
-    # # 
+    # #
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "BFS")
 
-    # # 
+    # #
     # getPlacement
-    # 
+    #
     # Description: called during setup phase for each Construction that
     #    must be placed by the player.  These items are: 1 Anthill on
     #    the player's side; 1 tunnel on player's side; 9 grass on the
     #    player's side; and 2 food on the enemy's side.
-    # 
+    #
     # Parameters:
     #    construction - the Construction to be placed.
     #    currentState - the state of the game at this point in time.
-    # 
+    #
     # Return: The coordinates of where the construction is to be placed
-    # # 
+    # #
     def getPlacement(self, currentState):
         numToPlace = 0
         # implemented by students to return their next move
@@ -85,15 +79,15 @@ class AIPlayer(Player):
         else:
             return [(0, 0)]
 
-    # # 
+    # #
     # getMove
     # Description: Gets the next move from the Player.
-    # 
+    #
     # Parameters:
     #    currentState - The state of the current game waiting for the player's move (GameState)
-    # 
+    #
     # Return: The Move to be made
-    # # 
+    # #
     def getMove(self, currentState):
         currentState.fastclone()
         moves = listAllLegalMoves(currentState)
@@ -120,15 +114,15 @@ class AIPlayer(Player):
 
         return moveToMake
 
-    # # 
+    # #
     # getAttack
     # Description: Gets the attack to be made from the Player
-    # 
+    #
     # Parameters:
     #    currentState - A clone of the current state (GameState)
     #    attackingAnt - The ant currently making the attack (Ant)
     #    enemyLocation - The Locations of the Enemies that can be attacked (Location[])
-    # # 
+    # #
     def getAttack(self, currentState, attackingAnt, enemyLocations):
         # Attack a random enemy.
         return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
@@ -433,3 +427,100 @@ class AIPlayer(Player):
     def dist(self, gameState, ant, dest):
         # return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
         return stepsToReach(gameState, ant.coords, dest)
+
+
+
+## Unit Tests
+from GameState import *
+from Location import *
+from Inventory import *
+from Construction import *
+
+
+def putFood(neutralInventory):
+    for i in range(0,9):
+        ourGrass = Construction((i, 0), GRASS)
+        otherGrass = Construction((i,9), GRASS)
+        neutralInventory.constrs.append(ourGrass)
+        neutralInventory.constrs.append(otherGrass)
+    for i in range(0,2):
+        ourFood = Construction((i,1), FOOD)
+        otherFood = Construction((i,8), FOOD)
+        neutralInventory.constrs.append(ourFood)
+        neutralInventory.constrs.append(otherFood)
+
+
+def putOurInventory(inventory):
+    inventory.constrs.append(Construction((0,3), ANTHILL))
+    inventory.constrs.append(Construction((1,3), TUNNEL))
+    inventory.ants.append(Ant((0,3), QUEEN, PLAYER_ONE)) # Queen
+    inventory.ants.append(Ant((0,6), DRONE, PLAYER_ONE)) # Queen
+
+
+def putTheirInventory(inventory):
+    inventory.constrs.append(Construction((0, 7), ANTHILL))
+    inventory.constrs.append(Construction((1, 7), TUNNEL))
+    queen = Ant((0, 7), QUEEN, PLAYER_TWO)
+    queen.health = 1
+    inventory.ants.append(queen) # Queen
+
+
+def equalStates(state1, state2):
+    if state1.phase != state2.phase or state1.whoseTurn != state2.whoseTurn:
+        return False
+    for i in range(0,3):
+        state1Inv = state1.inventories[i]
+        state2Inv = state1.inventories[i]
+        if len(state1Inv.constrs) != len(state2Inv.constrs):
+            return False
+        for j in range(0, len(state1Inv.constrs)):
+            if state1Inv.constrs[i] != state1Inv.constrs[i]:
+                return False
+        if i < 2:
+            if len(state1Inv.ants) != len(state2Inv.ants):
+                return False
+            for k in range(0, len(state1Inv.ants)):
+                if state1Inv.ants[i] != state1Inv.ants[i]:
+                    return False
+            if state1Inv.foodCount != state2Inv.foodCount:
+                return False
+    return True
+
+
+
+# Unit Tests
+board = [[Location((col, row)) for row in xrange(0, BOARD_LENGTH)] for col in xrange(0, BOARD_LENGTH)]
+p1Inventory = Inventory(PLAYER_ONE, [], [], 0)
+p2Inventory = Inventory(PLAYER_TWO, [], [], 0)
+neutralInventory = Inventory(NEUTRAL, [], [], 0)
+
+putFood(neutralInventory)
+putOurInventory(p1Inventory)
+putTheirInventory(p2Inventory)
+
+state = GameState(board, [p1Inventory, p2Inventory, neutralInventory], PLAY_PHASE, PLAYER_ONE)
+expectedState = state.fastclone()
+expectedState.inventories[PLAYER_TWO].ants = []
+
+
+ourAI = AIPlayer(PLAYER_ONE)
+
+move = Move(MOVE_ANT,[(0,6)], None)
+retrievedState = ourAI.expandNode(state, move)
+
+if equalStates(retrievedState, expectedState):
+    score = ourAI.evaluateState(retrievedState)
+    if score == 1.0 :
+        print "Unit Test #1 Passed"
+    else:
+        print "UNIT TEST #1 FAILED"
+else:
+    print "UNIT TEST #1 FAILED: STATES NOT THE SAME."
+
+
+
+
+
+
+
+
