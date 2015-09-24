@@ -110,7 +110,8 @@ class AIPlayer(Player):
                 maxKey = key
 
         # Choose random move that has a key value of maxKey Value
-        moveToMake = moveDict[maxKey][random.randint(0, len(moveDict[maxKey])-1)]
+        if moveDict.get(maxKey) is not None:
+            moveToMake = moveDict[maxKey][random.randint(0, len(moveDict[maxKey])-1)]
 
         if moveToMake is None:
             return Move(END, None, None)
@@ -221,7 +222,7 @@ class AIPlayer(Player):
 
         # pythagoras would be proud
         if range ** 2 >= diffX ** 2 + diffY ** 2:
-            #return True if within range
+            # return True if within range
             return True
         else:
             return False
@@ -300,9 +301,8 @@ class AIPlayer(Player):
     #
     # Parameters:
     #    gameState - The state being edited.
-    #    ourInventory - our Inventory
     #
-    # Return: Nothing
+    # Return: Score - a number between 0 and 1 that depicts how good a game state is for our AI
     # #
     def evaluateState(self, gameState):
         opponentId = self.getOpponentId()
@@ -326,18 +326,46 @@ class AIPlayer(Player):
         score = sumScore/8  # divide by number of catagories to
         return score
 
+    # #
+    # CheckIfWon
+    # Description: Checks if the gamestate is a win condition
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #   enemyInv - the opponent's Inventory
+    #
+    # Return: Boolean: True if win condition, False if not.
+    # #
     def checkIfWon(self, ourInv, enemyInv):
         if enemyInv.getQueen() is None or ourInv.foodCount == 11:
             return True
         return False
 
-    #if queen near other ant attack
+    # #
+    # CheckIfLose
+    # Description: Checks if the game state is a lose condition
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #   enemyInv - the opponent's Inventory
+    #
+    # Return: Boolean: True if win condition, False if not.
+    # #
     def checkIfLose(self, ourInv, enemyInv):
         # bit more complicated....
         if ourInv.getQueen() is None:
             return True
         return False
-
+    # #
+    # evalNumAnts
+    # Description: Evaluates the number of ants we have based on the number of ants the opponent has
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #   enemyInv - the opponent's Inventory
+    #
+    # Return: Score - score based on the difference between the number of ants we have and our opponent has
+    # #
     def evalNumAnts(self, ourInv, enemyInv):
         ourNum = len(ourInv.ants)
         enNum = len(enemyInv.ants)
@@ -345,6 +373,16 @@ class AIPlayer(Player):
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
         return self.diff(ourNum, enNum, 5)
 
+    # #
+    # evalAntsHealth
+    # Description: evals ants Health. checks the collective difference between our ants health verses our opponents
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #   enemyInv - the opponent's Inventory
+    #
+    # Return: Score - based on difference of overall ant health between AI's ants and Enemies Ant's
+    # #
     def evalAntsHealth(self, ourInv, enemyInv):
         ourHealth=-1
         enHealth=-1
@@ -356,9 +394,60 @@ class AIPlayer(Player):
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
         return self.diff(ourHealth, enHealth, 5)
 
+    # #
+    # evalFood
+    # Description: Evals the differnece in food based on diff between our Ai's food and Enemies Food
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #   enemyInv - the opponent's Inventory
+    #
+    # Return: Score - based on difference of food between AI and Enemy's
+    # #
     def evalFood(self, ourInv, enemyInv):
         return self.diff(ourInv.foodCount, enemyInv.foodCount, 10)
 
+    # #
+    # evalQueenThreat
+    # Description: Evals the threat our AI's ants are posing to the enemy queen. Based on distance from queen.
+    #   Uses mostly drones and drone distance.
+    #
+    # Parameters:
+    #   gameState - the state of the game.
+    #   ourInv - the AI's inventory
+    #   enemyInv - the opponent's inventory
+    #
+    # Return: Score - based on difference of overall drone distance of a drone to the enemy queen.
+    # #
+    def evalQueenThreat(self, gameState, ourInv, enemyInv):
+        droneList = []
+        for ant in ourInv.ants:
+            if ant.type == DRONE:
+                droneList.append(ant)
+
+        totalScore = 0
+        for drone in droneList:
+            dist = self.dist(gameState, drone, enemyInv.getQueen().coords)
+            totalScore += self.scoreDist(dist, 14)
+
+        score = 0
+        if len(droneList) > 0:
+            score = totalScore / float(len(droneList))
+
+        return score
+
+    # #
+    # evalWorkerNotCarrying
+    # Description: Evals the placement of worker ants not carrying food. Based on distance from food a worker.
+    #   The closer to the food the better the score. Does this for all ants, and does a collective score, and then
+    #   normalizes the score.
+    #
+    # Parameters:
+    #   gameState - the state of the game.
+    #   ourInv - the AI's inventory
+    #
+    # Return: Score - distance of all available workers from food.
+    # #
     def evalWorkerNotCarrying(self, gameState, ourInv):
         # Find worker ants not carrying
         notCarryingWorkers = []
@@ -388,23 +477,18 @@ class AIPlayer(Player):
 
         return score
 
-    def evalQueenThreat(self, gameState, ourInv, enemyInv):
-        droneList = []
-        for ant in ourInv.ants:
-            if ant.type == DRONE:
-                droneList.append(ant)
-
-        totalScore = 0
-        for drone in droneList:
-            dist = self.dist(gameState, drone, enemyInv.getQueen().coords)
-            totalScore += self.scoreDist(dist, 14)
-
-        score = 0
-        if len(droneList) > 0:
-            score = totalScore / float(len(droneList))
-
-        return score
-
+    # #
+    # evalWorkerCarrying
+    # Description: Evals the placement of worker ants carrying food. Based on distance from anthill or tunnel.
+    #   The closer to the building the better the score. Does this for all ants, and does a collective score, and then
+    #   normalizes the score.
+    #
+    # Parameters:
+    #   gameState - the state of the game.
+    #   ourInv - the AI's inventory
+    #
+    # Return: Score - based on all carrying ants from a building to drop food at.
+    # #
     def evalWorkerCarrying(self, gameState, ourInv):
         # Find worker ants not carrying
         CarryingWorkers = []
@@ -433,6 +517,16 @@ class AIPlayer(Player):
 
         return score
 
+    # #
+    # evalType
+    # Description: Evals the type of ants that we have and awards score based on the ration of worker ants to
+    #   drone ants.
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #
+    # Return: Score - based on the ration of drone ants to worker ants.
+    # #
     def evalType(self, ourInv):
         workerCount = 0
         droneCount = 0
@@ -454,11 +548,20 @@ class AIPlayer(Player):
         # return droneCount in proportion to workers
         ratio = droneCount / float(workerCount * 2)
         if ratio > 2:
-            ration = 2
+            ratio = 2
         score = (1/2)*ratio
 
         return score
 
+    # #
+    # evalQueenPosition
+    # Description: Ensures that the queen does not sit or move onto the food and block our worker ants.
+    #
+    # Parameters:
+    #   ourInv - the AI's inventory
+    #
+    # Return: Score - based on if the queen is on food or not.
+    # #
     def evalQueenPosition(self, ourInv):
         queen = ourInv.getQueen()
         for food in ourInv.constrs:
@@ -467,6 +570,18 @@ class AIPlayer(Player):
                     return 0
         return 1
 
+    # #
+    # diff
+    # Description: Helper method to calculate the difference between two values, given a bound to bound our equation
+    #   and return a score, based on difference and bound
+    #
+    # Parameters:
+    #   ours - AI's value
+    #   theirs - opponent's value
+    #   bound - an upper bound on the equation. Max difference.
+    #
+    # Return: Score - based on difference and the upper bound to provide a score between 0 and 1.
+    # #
     def diff(self, ours, theirs, bound):
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
         diff = ours - theirs
@@ -478,6 +593,17 @@ class AIPlayer(Player):
         #return score
         return diff/(bound*2) + 0.5
 
+    # #
+    # scoreDist
+    # Description: Helper method to provide a score for distance based scores. Given a distance and an upper bound,
+    #   retur
+    #
+    # Parameters:
+    #   dist - distance between two things
+    #   bound - an upper bound on max possible distance.
+    #
+    # Return: Score - based on the distance and uses the bound to normalize the number to be between 0 and 1.
+    # #
     def scoreDist(self, dist, bound):
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
         if dist == 0:
@@ -486,6 +612,17 @@ class AIPlayer(Player):
             dist = bound
         return (-dist + bound)/float(bound)
 
+    # #
+    # dist
+    # Description: calculates the distance between an ant and coordinate
+    #
+    # Parameters:
+    #   gameState - the state of the game.
+    #   ant - the source ant
+    #   dest - the destination COORDINATE
+    #
+    # Return: Score - based on difference of overall ant health between AI's ants and Enemies Ant's
+    # #
     def dist(self, gameState, ant, dest):
         # return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
         return stepsToReach(gameState, ant.coords, dest)
@@ -498,7 +635,15 @@ from Location import *
 from Inventory import *
 from Construction import *
 
-
+# #
+# putFood
+# Description: places the Food for our set up for our gameState for the Unit Test
+#
+# Parameters:
+#   neutralInventory - the inventory where grass and food is placed
+#
+# Return: Nothing
+# #
 def putFood(neutralInventory):
     for i in range(0,9):
         ourGrass = Construction((i, 0), GRASS)
@@ -512,6 +657,15 @@ def putFood(neutralInventory):
         neutralInventory.constrs.append(otherFood)
 
 
+# #
+# putOurInventory
+# Description: places the ants and anthill for our set up for our AI's inventory for the gameState for the Unit Test
+#
+# Parameters:
+#   inventory - the inventory for our AI.
+#
+# Return: Nothing
+# #
 def putOurInventory(inventory):
     inventory.constrs.append(Construction((0,3), ANTHILL))
     inventory.constrs.append(Construction((1,3), TUNNEL))
@@ -519,6 +673,16 @@ def putOurInventory(inventory):
     inventory.ants.append(Ant((0,6), DRONE, PLAYER_ONE)) # Queen
 
 
+# #
+# putTheirInventory
+# Description: places the ants and anthill for our set up for our opponent's inventory
+# for the gameState for the Unit Test
+#
+# Parameters:
+#   inventory - the inventory for our opponent.
+#
+# Return: Nothing
+# #
 def putTheirInventory(inventory):
     inventory.constrs.append(Construction((0, 7), ANTHILL))
     inventory.constrs.append(Construction((1, 7), TUNNEL))
@@ -526,7 +690,16 @@ def putTheirInventory(inventory):
     queen.health = 1
     inventory.ants.append(queen) # Queen
 
-
+# #
+# equalStates
+# Description: Checks if two game states are equal
+#
+# Parameters:
+#   state1 - a game state
+#   state2 - a game state to check against.
+#
+# Return: Boolean: True if equal, False if Not
+# #
 def equalStates(state1, state2):
     if state1.phase != state2.phase or state1.whoseTurn != state2.whoseTurn:
         return False
@@ -550,7 +723,10 @@ def equalStates(state1, state2):
 
 
 
-# Unit Tests
+# #
+# Unit Test
+# Description: Test's that given a game state, that it expands accordingly, and evaluates that state correctly.
+# #
 board = [[Location((col, row)) for row in xrange(0, BOARD_LENGTH)] for col in xrange(0, BOARD_LENGTH)]
 p1Inventory = Inventory(PLAYER_ONE, [], [], 0)
 p2Inventory = Inventory(PLAYER_TWO, [], [], 0)
@@ -572,7 +748,7 @@ retrievedState = ourAI.expandNode(state, move)
 
 if equalStates(retrievedState, expectedState):
     score = ourAI.evaluateState(retrievedState)
-    if score == 1.0 :
+    if score == 1.0:
         print "Unit Test #1 Passed"
     else:
         print "UNIT TEST #1 FAILED"
