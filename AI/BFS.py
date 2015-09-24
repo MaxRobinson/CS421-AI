@@ -81,7 +81,10 @@ class AIPlayer(Player):
 
     # #
     # getMove
-    # Description: Gets the next move from the Player.
+    # Description: Chooses the next best move to make by first expanding all legal moves and then scoring
+    #   each expanded state. It then decides which move to make based on the highest score.
+    #   If multiple moves share the same score, a random move is picked from the list of moves that all
+    #   received that score.
     #
     # Parameters:
     #    currentState - The state of the current game waiting for the player's move (GameState)
@@ -127,13 +130,11 @@ class AIPlayer(Player):
         # Attack a random enemy.
         return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
 
-
-
     # #
     # expandNode
-    #   NOTE: Assuming valid move
+    # Description: This method takes a game state, and a move, and applies the move
+    #   to the game State to depict what the game state would look like after the move is made
     #
-    #  *** NOTE: Building a tunnel costs 3 food, and ends that workers turn. Builds tunnel at that location. ****
     # Parameters:
     #    currentState - A clone of the current state (GameState)
     #    move - a game move to be executed to expand the state
@@ -182,6 +183,15 @@ class AIPlayer(Player):
 
         return gameState
 
+    # #
+    # getOpponentId
+    # Description: Helper method to get the opponent's ID
+    #
+    # Parameters:
+    #    None
+    #
+    # Return: The opponent's ID
+    # #
     def getOpponentId(self):
         opponentId = -1
         if self.playerId == 0:
@@ -190,8 +200,17 @@ class AIPlayer(Player):
             opponentId = 0
         return opponentId
 
-    ##
-    # Ripped from Game file
+
+    # #
+    # isValidAttack
+    # Description: Determines if an attack is valid.
+    #   This method was taken from the Game.py file, and slightly modified by current authors.
+    #
+    # Parameters:
+    #    attackingAnt - The ant that will be attacking
+    #    attackCoord - The Coords of where the ant is attacking
+    #
+    # Return: A boolean: True for Valid attack, False otherwise.
     def isValidAttack(self, attackingAnt, attackCoord):
         if attackCoord == None:
             return None
@@ -207,6 +226,17 @@ class AIPlayer(Player):
         else:
             return False
 
+    # #
+    # attackSequence
+    # Description: This method determines if there are any valid attacks for ourAI, and if so,
+    #   to evaluate the attack by picking a random enemy to attack.
+    #
+    # Parameters:
+    #    enemyInv - The opponents Inventory
+    #    antToMove - The ant that is moving into attack range.
+    #
+    # Return: Nothing
+    # #
     def attackSequence(self, enemyInv, antToMove ):
         attackedAntList = []
         for ant in enemyInv.ants:
@@ -225,6 +255,17 @@ class AIPlayer(Player):
             if antToAttack.health <= 0:
                 enemyInv.ants.remove(antToAttack)
 
+    # #
+    # pickUpFood
+    # Description: This method edits the game state to pickUP food if a worker ant that can carry is standing
+    #   on food.
+    #
+    # Parameters:
+    #    gameState - The state being edited.
+    #    ourInventory - our Inventory
+    #
+    # Return: Nothing
+    # #
     def pickUpFood(self, gameState, ourInventory):
         # check if food there
         for ant in ourInventory.ants:
@@ -232,6 +273,17 @@ class AIPlayer(Player):
                 if getConstrAt(gameState, ant.coords).type == FOOD and (not ant.carrying):
                     ant.carrying = True
 
+    # #
+    # dropOffFood
+    # Description: This method edits the game state to drop off food if a worker ant with food is standing
+    #   on a tunnel or anthill.
+    #
+    # Parameters:
+    #    gameState - The state being edited.
+    #    ourInventory - our Inventory
+    #
+    # Return: Nothing
+    # #
     def dropOffFood(self, gameState, ourInventory):
         # check if landded on tunnel or anthill
         for ant in ourInventory.ants:
@@ -242,6 +294,16 @@ class AIPlayer(Player):
                     ant.carrying = False
                     ourInventory.foodCount += 1
 
+    # #
+    # evaluateState
+    # Description:
+    #
+    # Parameters:
+    #    gameState - The state being edited.
+    #    ourInventory - our Inventory
+    #
+    # Return: Nothing
+    # #
     def evaluateState(self, gameState):
         opponentId = self.getOpponentId()
         enemyInv = gameState.inventories[opponentId]
