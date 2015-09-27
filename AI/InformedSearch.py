@@ -324,7 +324,7 @@ class AIPlayer(Player):
         sumScore = 0
         sumScore += self.evalNumAnts(ourInv, enemyInv)
         sumScore += self.evalType(ourInv)
-        sumScore += self.evalAntsHealth(ourInv, enemyInv)
+        # sumScore += self.evalAntsHealth(ourInv, enemyInv)
         sumScore += self.evalFood(ourInv, enemyInv)
         sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
         sumScore += self.evalWorkerCarrying(gameState, ourInv)
