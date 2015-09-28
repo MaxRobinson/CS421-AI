@@ -31,6 +31,8 @@ class AIPlayer(Player):
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "Recursive - Jet Drones Can't Melt Steel Queens")
         self.MAX_DEPTH = 2
+        self.CLOSEST_FOOD = None
+        self.CLOSEST_CONSTR = None
 
     ##
     #getPlacement
@@ -108,6 +110,11 @@ class AIPlayer(Player):
         #         bestMove = move
         #         bestMoveValue = value
         # return bestMove
+
+        #first time, find the closest food to our hill or tunnel
+        if self.CLOSEST_FOOD == None:
+            self.setClosestFoodAndBuilding(currentState)
+
         gameState = currentState.fastclone()
         eval = self.evaluate(gameState)
         node = Node(None, gameState, None, eval)
@@ -221,116 +228,130 @@ class AIPlayer(Player):
         opponentInv = gameState.inventories[opponentId]
 
         # get a list of tuple coordinates of my constructs
-        buildings = getConstrList(gameState, self.playerId, (ANTHILL, TUNNEL))
-        buildingCoords = []
-        buildingCoords.append(buildings[0].coords)
-        buildingCoords.append(buildings[1].coords)
+        # buildings = getConstrList(gameState, self.playerId, (ANTHILL, TUNNEL))
+        # buildingCoords = []
+        # buildingCoords.append(buildings[0].coords)
+        # buildingCoords.append(buildings[1].coords)
+        #
+        # # get a list of tuple coordinates of all food on board
+        # food = getConstrList(gameState, None, (FOOD, ))
+        # foodCoords = []
+        # for foodObj in food:
+        #     foodCoords.append(foodObj.coords)
+        #
+        # # base-case: if we win, return 1.
+        # if myInv.foodCount == 11 or opponentInv.getQueen() == None:
+        #     return 1.0 #WIN
+        #
+        # # base-case: if the opponent wins, return 0.
+        # if opponentInv.foodCount == 11 or myInv.getQueen() == None:
+        #     return 0.0 #LOSE
+        #
+        # # find and store coordinates of enemy queen
+        # enemyQueenCoords = opponentInv.getQueen().coords
+        #
+        # # compare food counts
+        # foodResult = (float(myInv.foodCount))/(float(FOOD_GOAL))
+        #
+        # #compare the ant counts
+        # allAnts = getAntList(gameState, pid=None)
+        # sumMyAnts = float(len(myInv.ants))
+        # sumOppAnts = float(len(opponentInv.ants))
+        # sumAllAnts = float(len(allAnts))
+        # antResult = (sumMyAnts - sumOppAnts)/(2*sumAllAnts) + 0.5
+        #
+        # #define a value for each ant type (sum of stats minus build cost)
+        # workerValue = 4.0
+        # droneValue = 6.0
+        # soldierValue = 6.0
+        # rangeValue = 5.0
+        # queenValue = 1.0
+        #
+        # #calculate strength of my army
+        # myAntSum = 0.0
+        # for myAnt in myInv.ants:
+        #     if myAnt.type == WORKER:
+        #         myAntSum = myAntSum + workerValue
+        #     elif myAnt.type == DRONE:
+        #         myAntSum = myAntSum + droneValue
+        #     elif myAnt.type == SOLDIER:
+        #         myAntSum = myAntSum + soldierValue
+        #     elif myAnt.type == R_SOLDIER:
+        #         myAntSum = myAntSum + rangeValue
+        #     elif myAnt.type == QUEEN:
+        #         myAntSum = myAntSum + queenValue
+        # #calculate strength of opponent's army
+        # oppAntSum = 0.0
+        # for oppAnt in opponentInv.ants:
+        #     if oppAnt.type == WORKER:
+        #         oppAntSum = oppAntSum + workerValue
+        #     elif oppAnt.type == DRONE:
+        #         oppAntSum = oppAntSum + droneValue
+        #     elif oppAnt.type == SOLDIER:
+        #         oppAntSum = oppAntSum + soldierValue
+        #     elif oppAnt.type == R_SOLDIER:
+        #         oppAntSum = oppAntSum + rangeValue
+        #     elif oppAnt.type == QUEEN:
+        #         oppAntSum = oppAntSum + queenValue
+        # armyStrength = (myAntSum - oppAntSum)/(2*(myAntSum + oppAntSum)) + 0.5
+        #
+        # #compare how many hit points enemy has vs total possible
+        # currentHealth = 0.0
+        # totalHealth = 0.0
+        # for ant in opponentInv.ants:
+        #     currentHealth = currentHealth + ant.health
+        #     totalHealth = totalHealth + UNIT_STATS[ant.type][HEALTH]
+        # hpPercent = 1.0 - currentHealth/totalHealth
+        #
+        # #evaulate an ant's distance from it's goal
+        # distanceSum = 0.0
+        # workers = 0.0
+        # carryingWorkers = 0.0
+        # for ant in myInv.ants:
+        #     if ant.type == WORKER:
+        #         workers = workers + 1.0	#keep count of how many workers we have
+        #         #calculate distance ants are from food/building and keep a sum of the steps
+        #         if ant.carrying:
+        #             carryingWorkers = carryingWorkers + 1.0
+        #             closestBuilding = self.findClosestCoord(gameState, ant.coords, buildingCoords)
+        #             buildingDistance = stepsToReach(gameState, ant.coords, closestBuilding)
+        #             distanceSum = distanceSum + buildingDistance/2.0
+        #         else:
+        #             closestFood = self.findClosestCoord(gameState, ant.coords, foodCoords)
+        #             foodDistance = stepsToReach(gameState, ant.coords, closestFood)
+        #             distanceSum = distanceSum + foodDistance
+        #     #all ants except worker and queen should pursue the enemy queen
+        #     elif ant.type == DRONE or ant.type == R_SOLDIER or ant.type == SOLDIER:
+        #         distanceSum = distanceSum + stepsToReach(gameState, ant.coords, enemyQueenCoords)
+        #
+        # #compare how many of our workers are carrying vs not carrying
+        # workerRatio = 0.0
+        # if workers > 0:
+        #     distanceResult = 1.0 - distanceSum/(40*workers)
+        #     if distanceResult < 0.0:
+        #         distanceResult = 0.0
+        #     workerRatio = carryingWorkers/workers
+        # else:
+        #     return 0.0
+        #
+        # #weight all considerations - higher multipliers = higher weight
+        # result = (foodResult*10.0 + antResult + armyStrength*8.0 + hpPercent + distanceResult + workerRatio/2.0)/22.5
+        #
+        # return result
 
-        # get a list of tuple coordinates of all food on board
-        food = getConstrList(gameState, None, (FOOD, ))
-        foodCoords = []
-        for foodObj in food:
-            foodCoords.append(foodObj.coords)
-
-        # base-case: if we win, return 1.
-        if myInv.foodCount == 11 or opponentInv.getQueen() == None:
-            return 1.0 #WIN
-
-        # base-case: if the opponent wins, return 0.
-        if opponentInv.foodCount == 11 or myInv.getQueen() == None:
-            return 0.0 #LOSE
-
-        # find and store coordinates of enemy queen
-        enemyQueenCoords = opponentInv.getQueen().coords
-
-        # compare food counts
-        foodResult = (float(myInv.foodCount))/(float(FOOD_GOAL))
-
-        #compare the ant counts
-        allAnts = getAntList(gameState, pid=None)
-        sumMyAnts = float(len(myInv.ants))
-        sumOppAnts = float(len(opponentInv.ants))
-        sumAllAnts = float(len(allAnts))
-        antResult = (sumMyAnts - sumOppAnts)/(2*sumAllAnts) + 0.5
-
-        #define a value for each ant type (sum of stats minus build cost)
-        workerValue = 4.0
-        droneValue = 6.0
-        soldierValue = 6.0
-        rangeValue = 5.0
-        queenValue = 1.0
-
-        #calculate strength of my army
-        myAntSum = 0.0
-        for myAnt in myInv.ants:
-            if myAnt.type == WORKER:
-                myAntSum = myAntSum + workerValue
-            elif myAnt.type == DRONE:
-                myAntSum = myAntSum + droneValue
-            elif myAnt.type == SOLDIER:
-                myAntSum = myAntSum + soldierValue
-            elif myAnt.type == R_SOLDIER:
-                myAntSum = myAntSum + rangeValue
-            elif myAnt.type == QUEEN:
-                myAntSum = myAntSum + queenValue
-        #calculate strength of opponent's army
-        oppAntSum = 0.0
-        for oppAnt in opponentInv.ants:
-            if oppAnt.type == WORKER:
-                oppAntSum = oppAntSum + workerValue
-            elif oppAnt.type == DRONE:
-                oppAntSum = oppAntSum + droneValue
-            elif oppAnt.type == SOLDIER:
-                oppAntSum = oppAntSum + soldierValue
-            elif oppAnt.type == R_SOLDIER:
-                oppAntSum = oppAntSum + rangeValue
-            elif oppAnt.type == QUEEN:
-                oppAntSum = oppAntSum + queenValue
-        armyStrength = (myAntSum - oppAntSum)/(2*(myAntSum + oppAntSum)) + 0.5
-
-        #compare how many hit points enemy has vs total possible
-        currentHealth = 0.0
-        totalHealth = 0.0
-        for ant in opponentInv.ants:
-            currentHealth = currentHealth + ant.health
-            totalHealth = totalHealth + UNIT_STATS[ant.type][HEALTH]
-        hpPercent = 1.0 - currentHealth/totalHealth
-
-        #evaulate an ant's distance from it's goal
-        distanceSum = 0.0
-        workers = 0.0
-        carryingWorkers = 0.0
+        antDistanceScore = 0.0
+        workerCount = 0.0
         for ant in myInv.ants:
             if ant.type == WORKER:
-                workers = workers + 1.0	#keep count of how many workers we have
-                #calculate distance ants are from food/building and keep a sum of the steps
-                if ant.carrying:
-                    carryingWorkers = carryingWorkers + 1.0
-                    closestBuilding = self.findClosestCoord(gameState, ant.coords, buildingCoords)
-                    buildingDistance = stepsToReach(gameState, ant.coords, closestBuilding)
-                    distanceSum = distanceSum + buildingDistance/2.0
+                workerCount += 1.0
+                if not ant.carrying:
+                    antDistanceScore += self.scoreDist(stepsToReach(gameState, ant.coords, self.CLOSEST_FOOD.coords),14)
                 else:
-                    closestFood = self.findClosestCoord(gameState, ant.coords, foodCoords)
-                    foodDistance = stepsToReach(gameState, ant.coords, closestFood)
-                    distanceSum = distanceSum + foodDistance
-            #all ants except worker and queen should pursue the enemy queen
-            elif ant.type == DRONE or ant.type == R_SOLDIER or ant.type == SOLDIER:
-                distanceSum = distanceSum + stepsToReach(gameState, ant.coords, enemyQueenCoords)
+                    antDistanceScore += self.scoreDist(stepsToReach(gameState, ant.coords, self.CLOSEST_CONSTR.coords),14)
+        score = antDistanceScore / float(workerCount)
+        return score
 
-        #compare how many of our workers are carrying vs not carrying
-        workerRatio = 0.0
-        if workers > 0:
-            distanceResult = 1.0 - distanceSum/(40*workers)
-            if distanceResult < 0.0:
-                distanceResult = 0.0
-            workerRatio = carryingWorkers/workers
-        else:
-            return 0.0
 
-        #weight all considerations - higher multipliers = higher weight
-        result = (foodResult*10.0 + antResult + armyStrength*8.0 + hpPercent + distanceResult + workerRatio/2.0)/22.5
-
-        return result
 
     ##
     #findClosestCoord
@@ -355,6 +376,58 @@ class AIPlayer(Player):
                 lastDist = currentDist
 
         return result
+
+    ##
+    #TODO: COMMENT METHOD
+    #Description: returns the closest in a list of coords from a specified
+    #
+    #Parameters:
+    #   currentState - the current game state, as a GameState object
+    #   src - the starting coordinate, as a tuple
+    #   destList - a list of destination tuples
+    #
+    #Return: The closest coordinate from the list
+    ##
+    def setClosestFoodAndBuilding(self, currentState):
+        foods = getConstrList(currentState, None, [FOOD])
+
+        minDist = 1000
+        minFood = None
+        minConstr = None
+        for constr in getConstrList(currentState, self.playerId, [ANTHILL, TUNNEL]):
+            minDistSoFar = 1000
+            minFoodSoFar = None
+            for food in foods:
+                tmp = stepsToReach(currentState, constr.coords, food.coords)
+                if tmp < minDistSoFar:
+                    minDistSoFar = tmp
+                    minFoodSoFar = food
+            if minDistSoFar < minDist:
+                minDist = minDistSoFar
+                minFood = minFoodSoFar
+                minConstr = constr
+
+        self.CLOSEST_CONSTR = minConstr
+        self.CLOSEST_FOOD = minFood
+
+    # #
+    # scoreDist
+    # Description: Helper method to provide a score for distance based scores. Given a distance and an upper bound,
+    #   retur
+    #
+    # Parameters:
+    #   dist - distance between two things
+    #   bound - an upper bound on max possible distance.
+    #
+    # Return: Score - based on the distance and uses the bound to normalize the number to be between 0 and 1.
+    # #
+    def scoreDist(self, dist, bound):
+        # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
+        if dist == 0:
+            return 1.0
+        if dist > bound:
+            dist = bound
+        return (-dist + bound)/float(bound)
 
     # #
     # evaluateListOfNodes
@@ -436,7 +509,6 @@ class AIPlayer(Player):
         for ant in antList:
             ant.hasMoved = False
         gameState.whoseTurn = playerId
-
 
 
 class Node:
