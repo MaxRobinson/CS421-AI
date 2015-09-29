@@ -1,9 +1,10 @@
-__author__ = 'Max Robinson, Triton Pitassi, '
+__author__ = 'Max Robinson, Triton Pitassi'
 import random
 from Ant import *
 from Building import *
 from Player import *
 from AIPlayerUtils import *
+from math import *
 
 # #
 # AIPlayer
@@ -23,11 +24,8 @@ class AIPlayer(Player):
     #    inputPlayerId - The id to give the new player (int)
     # #
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "Informed-DFS")
+        super(AIPlayer,self).__init__(inputPlayerId, "DFS-Informed")
         self.MAX_DEPTH = 2
-        self.CLOSEST_FOOD = None
-        self.CLOSEST_CONSTR = None
-        self.ANT_HILL = None
 
     # #
     # getPlacement
@@ -113,6 +111,7 @@ class AIPlayer(Player):
         #     if key > maxKey:
         #         maxKey = key
         #
+        #
         # # Choose random move that has a key value of maxKey Value
         # if moveDict.get(maxKey) is not None:
         #     moveToMake = moveDict[maxKey][random.randint(0, len(moveDict[maxKey])-1)]
@@ -121,14 +120,9 @@ class AIPlayer(Player):
         #     return Move(END, None, None)
         #
         # return moveToMake
-        if self.CLOSEST_FOOD == None:
-            self.setClosestFoodAndBuilding(currentState)
-        if self.ANT_HILL == None:
-            self.ANT_HILL = getConstrList(currentState, self.playerId, [ANTHILL])[0]
 
         gameState = currentState.fastclone()
-        eval = self.evaluateState(gameState)
-        node = Node(None, gameState, None, eval)
+        node = Node(None, gameState, None, None)
 
         bestNode = self.search(node, self.playerId, 0)
 
@@ -199,46 +193,6 @@ class AIPlayer(Player):
             return gameState
 
         return gameState
-
-    # #
-    # evaluateState
-    # Description:
-    #
-    # Parameters:
-    #    gameState - The state being edited.
-    #
-    # Return: Score - a number between 0 and 1 that depicts how good a game state is for our AI
-    # #
-    def evaluateState(self, gameState):
-        opponentId = self.getOpponentId()
-        enemyInv = gameState.inventories[opponentId]
-        ourInv = gameState.inventories[self.playerId]
-        if self.checkIfWon(ourInv, enemyInv):
-            return 1.0
-        elif self.checkIfLose(ourInv, enemyInv):
-            return 0.0
-
-        sumScore = 0
-        sumScore += self.evalNumAnts(ourInv, enemyInv)
-        sumScore += self.evalType(ourInv)
-        sumScore += self.evalAntsHealth(ourInv, enemyInv)
-        sumScore += self.evalFood(ourInv, enemyInv)
-        sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
-        sumScore += self.evalWorkerCarrying(gameState, ourInv)
-        sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
-        sumScore += self.evalQueenPosition(gameState, ourInv)
-
-        score = sumScore/8  # divide by number of catagories to
-        return score
-
-        # sumScore = 0.0
-        # sumScore += self.evalType(ourInv)
-        # sumScore += self.evalFood(ourInv,enemyInv)
-        # sumScore += self.evalAntMoves(gameState, ourInv, enemyInv)
-        # sumScore += self.evalNumAnts(ourInv, enemyInv)
-        #
-        # score = sumScore/4.0 # divide by number of catagories to
-        # return score
 
     # #
     # getOpponentId
@@ -352,6 +306,38 @@ class AIPlayer(Player):
                     ourInventory.foodCount += 1
 
     # #
+    # evaluateState
+    # Description:
+    #
+    # Parameters:
+    #    gameState - The state being edited.
+    #
+    # Return: Score - a number between 0 and 1 that depicts how good a game state is for our AI
+    # #
+    def evaluateState(self, gameState):
+        opponentId = self.getOpponentId()
+        enemyInv = gameState.inventories[opponentId]
+        ourInv = gameState.inventories[self.playerId]
+        if self.checkIfWon(ourInv, enemyInv):
+            return 1.0
+        elif self.checkIfLose(ourInv, enemyInv):
+            return 0.0
+
+        sumScore = 0
+        sumScore += self.evalNumAnts(ourInv, enemyInv)
+        sumScore += self.evalType(ourInv)
+        sumScore += self.evalAntsHealth(ourInv, enemyInv)
+        sumScore += self.evalFood(ourInv, enemyInv)
+        sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
+        sumScore += self.evalWorkerCarrying(gameState, ourInv)
+        sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
+        sumScore += self.evalQueenPosition(ourInv)
+
+        score = sumScore/8  # divide by number of catagories to
+        # print score
+        return score
+
+    # #
     # CheckIfWon
     # Description: Checks if the gamestate is a win condition
     #
@@ -396,7 +382,7 @@ class AIPlayer(Player):
         enNum = len(enemyInv.ants)
 
         # score= dif/10 + .5 (for abs(dif) < 5 else dif is +-5)
-        return (enNum - ourNum)/(2.0*(enNum + ourNum)) + 0.5
+        return self.diff(ourNum, enNum, 5)
 
     # #
     # evalAntsHealth
@@ -430,8 +416,7 @@ class AIPlayer(Player):
     # Return: Score - based on difference of food between AI and Enemy's
     # #
     def evalFood(self, ourInv, enemyInv):
-        return (float(ourInv.foodCount))/(float(FOOD_GOAL))
-        # return self.diff(ourInv.foodCount, enemyInv.foodCount, 10)
+        return self.diff(ourInv.foodCount, enemyInv.foodCount, 10)
 
     # #
     # evalQueenThreat
@@ -460,26 +445,6 @@ class AIPlayer(Player):
         if len(droneList) > 0:
             score = totalScore / float(len(droneList))
 
-        return score
-
-    def evalAntMoves(self, gameState, ourInv, theirInv):
-        score = 0.0
-        antDistanceScore = 0.0
-        workerCount = 0.0
-        for ant in ourInv.ants:
-            if ant.type == WORKER:
-                workerCount += 1.0
-                if not ant.carrying:
-                    antDistanceScore += self.scoreDist(stepsToReach(gameState, ant.coords, self.CLOSEST_FOOD.coords),14)
-                else:
-                    antDistanceScore += self.scoreDist(stepsToReach(gameState, ant.coords, self.CLOSEST_CONSTR.coords),14)
-            elif ant.type == DRONE or ant.type == SOLDIER or ant.type == R_SOLDIER:
-                antDistanceScore += self.scoreDist(stepsToReach(gameState, ant.coords, theirInv.getQueen().coords),14)
-            # elif ant.type == QUEEN:
-            #     antDistanceScore += self.evalQueenPosition(gameState, ourInv)
-
-        if workerCount > 0:
-            score = antDistanceScore / float(workerCount)
         return score
 
     # #
@@ -584,23 +549,20 @@ class AIPlayer(Player):
             if ant.type == WORKER:
                 workerCount += 1
             if ant.type == DRONE:
-                # droneCount += 1
-                return 0
+                droneCount += 1
 
         if workerCount <= 1:
-            return 0.0
+            return 0
         elif workerCount >= 2:
-            return 0.0
-        else:
-            return 1.0
+            return 0
 
-        # # return droneCount in proportion to workers
-        # ratio = droneCount / float(workerCount * 2)
-        # if ratio > 2:
-        #     ratio = 2
-        # score = (1/2)*ratio
+        # return droneCount in proportion to workers
+        ratio = droneCount / float(workerCount * 2)
+        if ratio > 2:
+            ratio = 2
+        score = (1/2)*ratio
 
-        # return score
+        return score
 
     # #
     # evalQueenPosition
@@ -611,19 +573,13 @@ class AIPlayer(Player):
     #
     # Return: Score - based on if the queen is on food or not.
     # #
-    def evalQueenPosition(self, gameState, ourInv):
+    def evalQueenPosition(self, ourInv):
         queen = ourInv.getQueen()
-        # for food in ourInv.constrs:
-        #     if food.type == FOOD:
-        #         if queen.coords == food.coords:
-        #             return 0
-        if queen.coords == self.CLOSEST_FOOD.coords:
-            return 0.0
-        elif queen.coords == self.ANT_HILL.coords:
-            return 0.0
-        # elif stepsToReach(gameState, queen.coords, self.ANT_HILL.coords) == 2:
-        #     return 1
-        return 0
+        for food in ourInv.constrs:
+            if food.type == FOOD:
+                if queen.coords == food.coords:
+                    return 0
+        return 1
 
     # #
     # diff
@@ -679,71 +635,32 @@ class AIPlayer(Player):
     # Return: Score - based on difference of overall ant health between AI's ants and Enemies Ant's
     # #
     def dist(self, gameState, ant, dest):
-        # return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
-        return stepsToReach(gameState, ant.coords, dest)
+        return sqrt((dest[0] - ant.coords[0])**2 + (dest[1] - ant.coords[1])**2)
+        # return stepsToReach(gameState, ant.coords, dest)
 
-    ##
-    #TODO: COMMENT METHOD
-    #Description: returns the closest in a list of coords from a specified
-    #
-    #Parameters:
-    #   currentState - the current game state, as a GameState object
-    #   src - the starting coordinate, as a tuple
-    #   destList - a list of destination tuples
-    #
-    #Return: The closest coordinate from the list
-    ##
-    def setClosestFoodAndBuilding(self, currentState):
-        foods = getConstrList(currentState, None, [FOOD])
-
-        minDist = 1000
-        minFood = None
-        minConstr = None
-        for constr in getConstrList(currentState, self.playerId, [ANTHILL, TUNNEL]):
-            minDistSoFar = 1000
-            minFoodSoFar = None
-            for food in foods:
-                tmp = stepsToReach(currentState, constr.coords, food.coords)
-                if tmp < minDistSoFar:
-                    minDistSoFar = tmp
-                    minFoodSoFar = food
-            if minDistSoFar < minDist:
-                minDist = minDistSoFar
-                minFood = minFoodSoFar
-                minConstr = constr
-
-        self.CLOSEST_CONSTR = minConstr
-        self.CLOSEST_FOOD = minFood
-
-
-
+##################### HW #3 ##########################
 
     # #
-    # evaluateListOfNodes
-    # Description: returns the evalutated score of a list of nodes, based on best score in list.
+    # TODO: Write this comment for method
+    # Description: returns the evaluated score of a list of nodes, based on best score in list.
     #
     # Parameters:
     #   listOfNodes - a list of Node objects.
     #
     # Return: MaxEval - the best evaluation rating for a node in the list.
     # #
-    def evaluateListOfNodes(self, listOfNodes):
-        maxEval = 0.0
-        for node in listOfNodes:
-            if node.eval > maxEval:
-                maxEval = node.eval
+    def setStateToMoveDeeper(self, gameState, playerId):
+        antList = gameState.inventories[playerId].ants
+        for ant in antList:
+            ant.hasMoved = False
+        gameState.whoseTurn = playerId
 
-        return maxEval
+    def evaluateNodeList(self, nodeList):
+        averageScore = 0.0
+        for node in nodeList:
+            averageScore += node.eval
+        return averageScore/float(len(nodeList))
 
-    # #
-    # evaluateListOfNodes
-    # Description: returns the evalutated score of a list of nodes, based on best score in list.
-    #
-    # Parameters:
-    #   listOfNodes - a list of Node objects.
-    #
-    # Return: A NODE!!!!!!
-    # #
     def search(self, currentNode, playerId, currentDepth):
         moveList = listAllLegalMoves(currentNode.state)
         nodeList = []
@@ -773,6 +690,46 @@ class AIPlayer(Player):
         # return best node in node list
         return self.findBestNode(nodeList)
 
+
+
+    # recursive
+    # Return a node
+    # def search(self, currentNode, playerId, currentDepth):
+    #     # Base Case
+    #     if currentDepth == self.MAX_DEPTH:
+    #         # for node in nodeList:
+    #         #     node.eval = self.evaluateState(node.state)
+    #         return currentNode
+    #     # expand and create Nodes
+    #     nodeList = []
+    #     for move in listAllLegalMoves(currentNode.state):
+    #         tempState = self.expandNode(currentNode.state, move)
+    #         tempEval = self.evaluateState(currentNode.state)
+    #         self.setStateToMoveDeeper(tempState, playerId)
+    #         nodeList.append(Node(move, tempState, currentNode, tempEval))
+    #
+    #     # recursive case
+    #     # recursiveList
+    #
+    #     # for node in nodeList:
+    #         # node.eval = self.search(node, playerId, currentDepth + 1).eval
+    #     for node in nodeList:
+    #         self.search(node, playerId, currentDepth + 1)
+    #
+    #
+    #     # regardless return
+    #     return self.findBestNode(nodeList)
+
+
+    # #
+    # findBestNode
+    # Description: returns the best node, in a list of nodes.
+    #
+    # Parameters:
+    #   listOfNodes - a list of Node objects.
+    #
+    # Return: A NODE!!!!!!
+    # #
     def findBestNode(self, nodeList):
         if len(nodeList) < 1:
             return None
@@ -784,20 +741,7 @@ class AIPlayer(Player):
         return bestNode
 
 
-    # #
-    # TODO: Write this comment for method
-    # Description: returns the evaluated score of a list of nodes, based on best score in list.
-    #
-    # Parameters:
-    #   listOfNodes - a list of Node objects.
-    #
-    # Return: MaxEval - the best evaluation rating for a node in the list.
-    # #
-    def setStateToMoveDeeper(self, gameState, playerId):
-        antList = gameState.inventories[playerId].ants
-        for ant in antList:
-            ant.hasMoved = False
-        gameState.whoseTurn = playerId
+
 
 
 
@@ -807,6 +751,7 @@ class Node:
         self.state = state
         self.parent = parent
         self.eval = eval
+
 
 
 ## Unit Tests
