@@ -661,13 +661,19 @@ class AIPlayer(Player):
             averageScore += node.eval
         return averageScore/float(len(nodeList))
 
+    # #
+    # search
+    # Description: searches to a depth of MAX_DEPTH to determine the best branch to go down.
+    #
+    # Parameters:
+    #   TODO: add parameters
+    #
+    # Return: A node
+    #       - breaks if Max_depth is 0
+    # #
     def search(self, currentNode, playerId, currentDepth):
         moveList = listAllLegalMoves(currentNode.state)
         nodeList = []
-
-        # BASE CASE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if currentDepth == self.MAX_DEPTH:
-            return currentNode
 
         nodeDict = {}
         for move in moveList:
@@ -682,12 +688,17 @@ class AIPlayer(Player):
                 nodeDict[eval] = list()
             nodeDict[eval].append(node)
 
-        # recurse here
-        maxKey = max(nodeDict.keys())
-        for node in nodeDict[maxKey]:
-            self.search(node, playerId, currentDepth+1)
+        # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
+        # if not max dept recurs
+        if currentDepth != self.MAX_DEPTH:
+            # recurse here
+            maxKey = max(nodeDict.keys())
+            for node in nodeDict[maxKey]:
+                # self.search(node, playerId, currentDepth+1)
+                node.eval = self.search(node, playerId, currentDepth+1).eval
+            return self.findBestNode(nodeDict[maxKey])
 
-        # return best node in node list
+        # return best node of nodes that haven't been recursively expanded
         return self.findBestNode(nodeList)
 
 
@@ -739,10 +750,6 @@ class AIPlayer(Player):
             if node.eval > bestNode.eval:
                 bestNode = node
         return bestNode
-
-
-
-
 
 
 class Node:
