@@ -693,44 +693,18 @@ class AIPlayer(Player):
         if currentDepth != self.MAX_DEPTH:
             # recurse here
             maxKey = max(nodeDict.keys())
-            for node in nodeDict[maxKey]:
+            shortenedList = []
+            if len(nodeDict[maxKey]) > 5:
+                shortenedList = nodeDict[maxKey][:6]
+            else:
+                shortenedList = nodeDict[maxKey]
+            for node in shortenedList:
                 # self.search(node, playerId, currentDepth+1)
                 node.eval = self.search(node, playerId, currentDepth+1).eval
-            return self.findBestNode(nodeDict[maxKey])
+            return self.findBestNode(shortenedList)
 
         # return best node of nodes that haven't been recursively expanded
         return self.findBestNode(nodeList)
-
-
-
-    # recursive
-    # Return a node
-    # def search(self, currentNode, playerId, currentDepth):
-    #     # Base Case
-    #     if currentDepth == self.MAX_DEPTH:
-    #         # for node in nodeList:
-    #         #     node.eval = self.evaluateState(node.state)
-    #         return currentNode
-    #     # expand and create Nodes
-    #     nodeList = []
-    #     for move in listAllLegalMoves(currentNode.state):
-    #         tempState = self.expandNode(currentNode.state, move)
-    #         tempEval = self.evaluateState(currentNode.state)
-    #         self.setStateToMoveDeeper(tempState, playerId)
-    #         nodeList.append(Node(move, tempState, currentNode, tempEval))
-    #
-    #     # recursive case
-    #     # recursiveList
-    #
-    #     # for node in nodeList:
-    #         # node.eval = self.search(node, playerId, currentDepth + 1).eval
-    #     for node in nodeList:
-    #         self.search(node, playerId, currentDepth + 1)
-    #
-    #
-    #     # regardless return
-    #     return self.findBestNode(nodeList)
-
 
     # #
     # findBestNode
