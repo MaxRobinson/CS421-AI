@@ -125,7 +125,6 @@ class AIPlayer(Player):
         node = Node(None, gameState, None, None)
 
         bestNode = self.search(node, self.playerId, 0)
-
         return bestNode.move
 
     # #
@@ -543,18 +542,18 @@ class AIPlayer(Player):
         droneCount = 0
         for ant in ourInv.ants:
             if ant.type == SOLDIER:
-                return 0
+                return 0.0
             if ant.type == R_SOLDIER:
-                return 0
+                return 0.0
             if ant.type == WORKER:
                 workerCount += 1
             if ant.type == DRONE:
                 droneCount += 1
 
         if workerCount <= 1:
-            return 0
+            return 0.0
         elif workerCount >= 2:
-            return 0
+            return 0.0
 
         # return droneCount in proportion to workers
         ratio = droneCount / float(workerCount * 2)
@@ -575,9 +574,9 @@ class AIPlayer(Player):
     # #
     def evalQueenPosition(self, ourInv):
         queen = ourInv.getQueen()
-        for food in ourInv.constrs:
-            if food.type == FOOD:
-                if queen.coords == food.coords:
+        for constr in ourInv.constrs:
+            if constr.type in [ANTHILL, TUNNEL, FOOD]:
+                if queen.coords == constr.coords:
                     return 0
         return 1
 
@@ -684,6 +683,10 @@ class AIPlayer(Player):
             node = Node(move, gameState, currentNode.state, eval)
             nodeList.append(node)
 
+            #if we can win, don't look further
+            if node.eval == 1.0:
+                return node
+
             if eval not in nodeDict:
                 nodeDict[eval] = list()
             nodeDict[eval].append(node)
@@ -693,6 +696,7 @@ class AIPlayer(Player):
         if currentDepth != self.MAX_DEPTH:
             # recurse here
             maxKey = max(nodeDict.keys())
+
             for node in nodeDict[maxKey]:
                 # self.search(node, playerId, currentDepth+1)
                 node.eval = self.search(node, playerId, currentDepth+1).eval
