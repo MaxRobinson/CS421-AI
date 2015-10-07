@@ -25,7 +25,7 @@ class AIPlayer(Player):
     #    inputPlayerId - The id to give the new player (int)
     # #
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "DFS-Informed")
+        super(AIPlayer,self).__init__(inputPlayerId, "Informer - max and Jaimiey")
         self.MAX_DEPTH = 3
 
     # #
