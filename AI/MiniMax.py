@@ -26,7 +26,9 @@ class AIPlayer(Player):
     # #
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "MiniMax")
-        self.MAX_DEPTH = 3
+        self.MAX_DEPTH = 1
+        self.MIN_ALPHA = -1000
+        self.MAX_BETA = 1000
 
     # #
     # getPlacement
@@ -96,7 +98,7 @@ class AIPlayer(Player):
     # #
     def getMove(self, currentState):
         gameState = currentState.fastclone()
-        node = Node(None, gameState, None, None)
+        node = Node(None, gameState, None, None, self.MIN_ALPHA, self.MAX_BETA)
 
         bestNode = self.search(node, self.playerId, 0)
         return bestNode.move
@@ -655,44 +657,90 @@ class AIPlayer(Player):
             # expand node
             gameState = self.expandNode(currentNode.state, move)
             eval = self.evaluateState(gameState)
-            # self.setStateToMoveDeeper(gameState, playerId)
-            node = Node(move, gameState, currentNode.state, eval)
+            # if move.moveType == END:
+            #     eval = self.evaluateState(gameState)
+            #     node = Node(move, gameState, currentNode.state, eval, currentNode.alpha, currentNode.beta)
+            # else:
+            node = Node(move, gameState, currentNode.state, eval, currentNode.alpha, currentNode.beta)
+
             # if move == Move(END, None, None):
             if move.moveType == END:
                 self.setStateToMoveDeeper(gameState, self.getOpponentId(playerId))
             nodeList.append(node)
 
-            #if we can win, don't look further
-            if node.eval == 1.0:
-                return node
+            # #if we can win, don't look further
+            # if node.eval == 1.0:
+            #     return node
 
-            if eval not in nodeDict:
-                nodeDict[eval] = list()
-            nodeDict[eval].append(node)
-
-        # # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
-        # # if not max dept recurs
-        # if currentDepth != self.MAX_DEPTH:
-        #     for node in nodeList:
-        #         node.eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
-        #     return self.findBestNode(nodeList)
-
+            # if eval not in nodeDict:
+            #     nodeDict[eval] = list()
+            # nodeDict[eval].append(node)
 
         # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
         # if not max dept recurs
         if currentDepth != self.MAX_DEPTH:
-            # recurse here
-            maxKey = max(nodeDict.keys())
-            shortenedList = []
-            if len(nodeDict[maxKey]) > 5:
-                shortenedList = nodeDict[maxKey][:6]
-            else:
-                shortenedList = nodeDict[maxKey]
+            for node in nodeList:
+                whoseTurn = None
 
-            for node in shortenedList:
-                # self.search(node, playerId, currentDepth+1)
-                node.eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
-            return self.findBestNode(shortenedList)
+                if node.move == END:
+                    whoseTurn = self.getOpponentId(node.state.whoseTurn)
+                else:
+                    whoseTurn = node.state.whoseTurn
+
+                # Our turn
+                if whoseTurn == self.playerId:
+                    # do max
+                    eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
+                    if eval is None:
+                        continue
+
+                    if eval > node.beta:
+                        # prune
+                        node.eval = None
+                        return currentNode
+                    if eval > node.alpha:
+                        node.alpha = eval
+
+                # not our turn
+                else:
+                    eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
+                    if eval is None:
+                        continue
+
+                    if eval < node.alpha:
+                        # prune
+                        node.eval = None
+                        return currentNode
+                    if eval < node.beta:
+                        node.beta = eval
+
+            return self.findBestNode(nodeList)
+
+
+        # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
+        # if not max dept recurs
+        # if currentDepth != self.MAX_DEPTH:
+        #     # recurse here
+        #     maxKey = max(nodeDict.keys())
+        #     shortenedList = []
+        #     if len(nodeDict[maxKey]) > 5:
+        #         shortenedList = nodeDict[maxKey][:6]
+        #     else:
+        #         shortenedList = nodeDict[maxKey]
+        #
+        #     for node in shortenedList:
+        #         # self.search(node, playerId, currentDepth+1)
+        #         # if node's move is end move, change how to evaluate.
+        #
+        #         # if our turn, be updating the min alpha-beta value
+        #
+        #         # if not our turn, update the max alpha-beta value
+        #
+        #         # in both cases, check for the ability to prune, and then just return None
+        #
+        #         # check for None, and if None, then return the
+        #         node.eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
+        #     return self.findBestNode(shortenedList)
 
 
 
@@ -734,11 +782,15 @@ class AIPlayer(Player):
         if(whoseTurn == self.playerId):
             #find max's
             for node in nodeList:
+                if node.eval is None:
+                    continue
                 if node.eval > bestNode.eval:
                     bestNode = node
         else:
             #find min's
             for node in nodeList:
+                if node.eval is None:
+                    continue
                 if node.eval < bestNode.eval:
                     bestNode = node
 
@@ -746,7 +798,9 @@ class AIPlayer(Player):
 
 
 class Node:
-    def __init__(self, move, state, parent,  eval):
+    def __init__(self, move, state, parent,  eval, alpha, beta):
+        self.alpha = alpha
+        self.beta = beta
         self.move = move
         self.state = state
         self.parent = parent
