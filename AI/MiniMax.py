@@ -26,7 +26,7 @@ class AIPlayer(Player):
     # #
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "MiniMax")
-        self.MAX_DEPTH = 1
+        self.MAX_DEPTH = 3
         self.MIN_ALPHA = -1000
         self.MAX_BETA = 1000
 
@@ -672,14 +672,74 @@ class AIPlayer(Player):
             # if node.eval == 1.0:
             #     return node
 
-            # if eval not in nodeDict:
-            #     nodeDict[eval] = list()
-            # nodeDict[eval].append(node)
+            if eval not in nodeDict:
+                nodeDict[eval] = list()
+            nodeDict[eval].append(node)
+
+        # # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
+        # # if not max dept recurs
+        # if currentDepth != self.MAX_DEPTH:
+        #     for node in nodeList:
+        #         whoseTurn = None
+        #
+        #         if node.move == END:
+        #             whoseTurn = self.getOpponentId(node.state.whoseTurn)
+        #         else:
+        #             whoseTurn = node.state.whoseTurn
+        #
+        #         # Our turn
+        #         if whoseTurn == self.playerId:
+        #             # do max
+        #             eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
+        #             if eval is None:
+        #                 continue
+        #
+        #             if eval > node.beta:
+        #                 # prune
+        #                 node.eval = None
+        #                 return currentNode
+        #             if eval > node.alpha:
+        #                 node.alpha = eval
+        #
+        #         # not our turn
+        #         else:
+        #             eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
+        #             if eval is None:
+        #                 continue
+        #
+        #             if eval < node.alpha:
+        #                 # prune
+        #                 node.eval = None
+        #                 return currentNode
+        #             if eval < node.beta:
+        #                 node.beta = eval
+        #
+        #     return self.findBestNode(nodeList)
+
 
         # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
         # if not max dept recurs
         if currentDepth != self.MAX_DEPTH:
-            for node in nodeList:
+            # recurse here
+            maxKey = max(nodeDict.keys())
+            shortenedList = []
+            if len(nodeDict[maxKey]) > 5:
+                shortenedList = nodeDict[maxKey][:6]
+            else:
+                shortenedList = nodeDict[maxKey]
+
+            for node in shortenedList:
+                # self.search(node, playerId, currentDepth+1)
+                # if node's move is end move, change how to evaluate.
+
+                # if our turn, be updating the min alpha-beta value
+
+                # if not our turn, update the max alpha-beta value
+
+                # in both cases, check for the ability to prune, and then just return None
+
+                # check for None, and if None, then return the
+                # node.eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
                 whoseTurn = None
 
                 if node.move == END:
@@ -713,34 +773,7 @@ class AIPlayer(Player):
                         return currentNode
                     if eval < node.beta:
                         node.beta = eval
-
-            return self.findBestNode(nodeList)
-
-
-        # BASE CASE: if MAX_DEPTH - Skip recursion, and find best node of those evaluated
-        # if not max dept recurs
-        # if currentDepth != self.MAX_DEPTH:
-        #     # recurse here
-        #     maxKey = max(nodeDict.keys())
-        #     shortenedList = []
-        #     if len(nodeDict[maxKey]) > 5:
-        #         shortenedList = nodeDict[maxKey][:6]
-        #     else:
-        #         shortenedList = nodeDict[maxKey]
-        #
-        #     for node in shortenedList:
-        #         # self.search(node, playerId, currentDepth+1)
-        #         # if node's move is end move, change how to evaluate.
-        #
-        #         # if our turn, be updating the min alpha-beta value
-        #
-        #         # if not our turn, update the max alpha-beta value
-        #
-        #         # in both cases, check for the ability to prune, and then just return None
-        #
-        #         # check for None, and if None, then return the
-        #         node.eval = self.search(node, node.state.whoseTurn, currentDepth+1).eval
-        #     return self.findBestNode(shortenedList)
+            return self.findBestNode(shortenedList)
 
 
 

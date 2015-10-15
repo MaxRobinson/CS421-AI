@@ -26,7 +26,7 @@ class AIPlayer(Player):
     # #
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "DFS-Informed")
-        self.MAX_DEPTH = 3
+        self.MAX_DEPTH = 2
 
     # #
     # getPlacement
