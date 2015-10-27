@@ -72,7 +72,26 @@ class AIPlayer(Player):
         return (child1, child2)
 
     def generateNextGen(self):
-        # choose which parents will mate and which ones to throw out.
+        # choose which parents will mate
+        for i in range(0, self.POPULATIONSIZE/2):
+
+            # get the indexes of the parents to mate.
+            firstParentIndex = self.fitness.index(max(self.fitness))
+            self.fitness[firstParentIndex] = -sys.maxint
+            secondParentIndex = self.fitness.index(max(self.fitness))
+            self.fitness[secondParentIndex] = -sys.maxint
+
+            # get parent genes
+            parent1 = self.currentPopulation[firstParentIndex]
+            parent2 = self.currentPopulation[secondParentIndex]
+
+            # mate
+            children = self.mate(parent1, parent2)
+
+            # replace parents
+            self.currentPopulation[firstParentIndex] = children[0]
+            self.currentPopulation[secondParentIndex] = children[1]
+
         return
 
     # #
@@ -136,47 +155,6 @@ class AIPlayer(Player):
                 moves.append((x, y))
 
         return moves
-
-
-
-        # numToPlace = 0
-        # # implemented by students to return their next move
-        # if currentState.phase == SETUP_PHASE_1:    # stuff on my side
-        #     numToPlace = 11
-        #     moves = []
-        #     for i in range(0, numToPlace):
-        #         move = None
-        #         while move == None:
-        #             # Choose any x location
-        #             x = random.randint(0, 9)
-        #             # Choose any y location on your side of the board
-        #             y = random.randint(0, 3)
-        #             # Set the move if this space is empty
-        #             if currentState.board[x][y].constr == None and (x, y) not in moves:
-        #                 move = (x, y)
-        #                 # Just need to make the space non-empty. So I threw whatever I felt like in there.
-        #                 currentState.board[x][y].constr == True
-        #         moves.append(move)
-        #     return moves
-        # elif currentState.phase == SETUP_PHASE_2:   # stuff on foe's side
-        #     numToPlace = 2
-        #     moves = []
-        #     for i in range(0, numToPlace):
-        #         move = None
-        #         while move == None:
-        #             # Choose any x location
-        #             x = random.randint(0, 9)
-        #             # Choose any y location on enemy side of the board
-        #             y = random.randint(6, 9)
-        #             # Set the move if this space is empty
-        #             if currentState.board[x][y].constr == None and (x, y) not in moves:
-        #                 move = (x, y)
-        #                 # Just need to make the space non-empty. So I threw whatever I felt like in there.
-        #                 currentState.board[x][y].constr == True
-        #         moves.append(move)
-        #     return moves
-        # else:
-        #     return [(0, 0)]
 
     # #
     # getMove
@@ -1082,10 +1060,27 @@ def testBoardPlacement():
         print "List of moves NOT RIGHT PHASE 2"
         return
 
+def testGenerateNextGen():
+    AI = AIPlayer(PLAYER_ONE)
+
+    AI.initGenes()
+    AI.fitness = [20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1]
+
+    print "CURR POP: ", AI.currentPopulation
+
+    AI.generateNextGen()
+
+    print "Next Gen: ", AI.currentPopulation
+
+    if len(AI.currentPopulation) != 20:
+        print "NEXT GET LENGTH NOT RIGHT"
+        return
+
 
 
 testGeneCreation()
 testBoardPlacement()
+testGenerateNextGen()
 
 parent1 = []
 for i in range(0, 40):
