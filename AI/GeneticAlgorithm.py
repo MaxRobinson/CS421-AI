@@ -33,9 +33,13 @@ class AIPlayer(Player):
         self.currentPopulation = []
         self.populationIndex = 0
         self.fitness = []
-        self.POPULATIONSIZE = 10
+        self.POPULATIONSIZE = 20
         self.GENELENGTH = 40
         self.initGenes()
+
+        self.MAXNUMGAMESPERGENE = 20
+        self.numGamesForGene = 0
+
 
 
     ##
@@ -50,6 +54,10 @@ class AIPlayer(Player):
 
             self.fitness.append(0)
             self.currentPopulation.append(gene)
+
+    def resetFitness(self):
+        for i in range(0, self.POPULATIONSIZE):
+            self.fitness[i] = 0
 
 
     def mate(self, parent1, parent2):
@@ -93,6 +101,27 @@ class AIPlayer(Player):
             self.currentPopulation[secondParentIndex] = children[1]
 
         return
+
+    def registerWin(self, hasWon):
+        self.numGamesForGene += 1
+        if(hasWon):
+            self.fitness[self.populationIndex] += 1
+        else:
+            self.fitness[self.populationIndex] -= 1
+
+        # check if a gene has not been finished evaluating
+        if self.numGamesForGene != self.MAXNUMGAMESPERGENE:
+            return
+
+        # if number of games for this gene is met for fitness level move to the next one.
+        else:
+            self.populationIndex += 1
+            self.numGamesForGene = 0
+            # if index is equal to size of population then time to mate
+            if self.populationIndex == self.POPULATIONSIZE:
+                self.generateNextGen()
+                self.resetFitness()
+                self.populationIndex = 0
 
     # #
     # getPlacement
