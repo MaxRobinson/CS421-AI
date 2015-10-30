@@ -44,10 +44,6 @@ class AIPlayer(Player):
 
         self.turnNumber = 0
 
-
-
-
-
     ##
     #
     ##
@@ -77,11 +73,11 @@ class AIPlayer(Player):
 
         randomChance = random.randint(0, self.MutationRate)
         if randomChance == 1:
-            randomPosition = random.randint(0, self.GENELENGTH)
+            randomPosition = random.randint(0, self.GENELENGTH-1)
             child1[randomPosition] = random.randint(0, 1000)
 
         if randomChance == 2:
-            randomPosition = random.randint(0, self.GENELENGTH)
+            randomPosition = random.randint(0, self.GENELENGTH-1)
             child2[randomPosition] = random.randint(0, 1000)
 
         return (child1, child2)
