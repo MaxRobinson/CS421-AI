@@ -33,12 +33,18 @@ class AIPlayer(Player):
         self.currentPopulation = []
         self.populationIndex = 0
         self.fitness = []
-        self.POPULATIONSIZE = 20
+        self.POPULATIONSIZE = 10
         self.GENELENGTH = 40
+        self.MutationRate = 5
+
         self.initGenes()
 
-        self.MAXNUMGAMESPERGENE = 20
+        self.MAXNUMGAMESPERGENE = 10
         self.numGamesForGene = 0
+
+        self.turnNumber = 0
+
+
 
 
 
@@ -50,6 +56,7 @@ class AIPlayer(Player):
         for i in range(0, self.POPULATIONSIZE):
             gene = []
             for i in range(0, self.GENELENGTH):
+
                 gene.append(random.randint(0, 10000))
 
             self.fitness.append(0)
@@ -68,7 +75,7 @@ class AIPlayer(Player):
         child1 = parent1[0:pivot] + temp2
         child2 = parent2[0:pivot] + temp1
 
-        randomChance = random.randint(0, 30)
+        randomChance = random.randint(0, self.MutationRate)
         if randomChance == 1:
             randomPosition = random.randint(0, self.GENELENGTH)
             child1[randomPosition] = random.randint(0, 1000)
@@ -80,34 +87,62 @@ class AIPlayer(Player):
         return (child1, child2)
 
     def generateNextGen(self):
+
+        newPopulation = []
+
+        # create weight array
+        indiciesAsWeighted = []
+        for i in range(0, len(self.fitness)):
+            fitness = self.fitness[i]
+            for j in range(0, fitness):
+                indiciesAsWeighted.append(i)
+
         # choose which parents will mate
         for i in range(0, self.POPULATIONSIZE/2):
 
-            # get the indexes of the parents to mate.
-            firstParentIndex = self.fitness.index(max(self.fitness))
-            self.fitness[firstParentIndex] = -sys.maxint
-            secondParentIndex = self.fitness.index(max(self.fitness))
-            self.fitness[secondParentIndex] = -sys.maxint
+            # pick parent genes randomly based on weight
+            index1 = indiciesAsWeighted[random.randint(0, len(indiciesAsWeighted)-1)] #index into population to mate
+            parent1 = self.currentPopulation[index1]
 
-            # get parent genes
-            parent1 = self.currentPopulation[firstParentIndex]
-            parent2 = self.currentPopulation[secondParentIndex]
+            parent2 = parent1
+            index2 = index1
+            while(parent2 == parent1):
+                index2 = indiciesAsWeighted[random.randint(0, len(indiciesAsWeighted)-1)]
+                parent2 = self.currentPopulation[index2]
 
-            # mate
+
+            print "Mating: ", index1, " ", index2
             children = self.mate(parent1, parent2)
 
-            # replace parents
-            self.currentPopulation[firstParentIndex] = children[0]
-            self.currentPopulation[secondParentIndex] = children[1]
+            newPopulation.append(children[0])
+            newPopulation.append(children[1])
+
+        self.currentPopulation = newPopulation
+
+            # # get the indexes of the parents to mate.
+            # firstParentIndex = self.fitness.index(max(self.fitness))
+            # self.fitness[firstParentIndex] = -sys.maxint
+            # secondParentIndex = self.fitness.index(max(self.fitness))
+            # self.fitness[secondParentIndex] = -sys.maxint
+            #
+            # # get parent genes
+            # parent1 = self.currentPopulation[firstParentIndex]
+            # parent2 = self.currentPopulation[secondParentIndex]
+            #
+            # # mate
+            # children = self.mate(parent1, parent2)
+            #
+            # # replace parents
+            # self.currentPopulation[firstParentIndex] = children[0]
+            # self.currentPopulation[secondParentIndex] = children[1]
 
         return
 
     def registerWin(self, hasWon):
         self.numGamesForGene += 1
+        self.turnNumber = 0
         if(hasWon):
             self.fitness[self.populationIndex] += 1
-        else:
-            self.fitness[self.populationIndex] -= 1
 
         # check if a gene has not been finished evaluating
         if self.numGamesForGene != self.MAXNUMGAMESPERGENE:
@@ -122,6 +157,8 @@ class AIPlayer(Player):
                 self.generateNextGen()
                 self.resetFitness()
                 self.populationIndex = 0
+
+
 
     # #
     # getPlacement
@@ -198,6 +235,10 @@ class AIPlayer(Player):
     # Return: The Move to be made
     # #
     def getMove(self, currentState):
+        if self.turnNumber == 0:
+            asciiPrintState(currentState)
+            self.turnNumber += 1
+
         gameState = currentState.fastclone()
         node = Node(None, gameState, None, None, self.MIN_ALPHA, self.MAX_BETA)
 
@@ -513,7 +554,7 @@ class AIPlayer(Player):
     def evalQueenThreat(self, gameState, ourInv, enemyInv):
         droneList = []
         for ant in ourInv.ants:
-            if ant.type == DRONE:
+            if ant.type == DRONE or ant.type == SOLDIER or ant.type == R_SOLDIER:
                 droneList.append(ant)
 
         totalScore = 0
@@ -1020,12 +1061,12 @@ else:
 
 def testGeneCreation():
     AI = AIPlayer(PLAYER_ONE)
-    AI.initGenes()
-    population = AI.currentPopulation
-    if (len(population) != AI.POPULATIONSIZE):
-        print "POPULATION FAILED"
+    # AI.initGenes()
+    THINGYTHING = AI.currentPopulation
+    if len(THINGYTHING) != AI.POPULATIONSIZE:
+        print "POPULATION FAILED", len(THINGYTHING)
         return
-    if (len(population[0]) != AI.GENELENGTH):
+    if len(THINGYTHING[0]) != AI.GENELENGTH:
         print "GENE LENGTH NOT RIGHT"
         return
 
@@ -1039,7 +1080,7 @@ def testGeneCreation():
             return
 
     else:
-        print "Population: ", population
+        print "Population: ", THINGYTHING
 
 
 
@@ -1093,7 +1134,7 @@ def testGenerateNextGen():
     AI = AIPlayer(PLAYER_ONE)
 
     AI.initGenes()
-    AI.fitness = [20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1]
+    AI.fitness = [20,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,19]
 
     print "CURR POP: ", AI.currentPopulation
 
@@ -1101,8 +1142,8 @@ def testGenerateNextGen():
 
     print "Next Gen: ", AI.currentPopulation
 
-    if len(AI.currentPopulation) != 20:
-        print "NEXT GET LENGTH NOT RIGHT"
+    if len(AI.currentPopulation) != AI.POPULATIONSIZE:
+        print "NEXT POPULATION LENGTH NOT RIGHT"
         return
 
 

@@ -26,7 +26,7 @@ class AIPlayer(Player):
     # #
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "Mini Max")
-        self.MAX_DEPTH = 4
+        self.MAX_DEPTH = 3
         self.MIN_ALPHA = -1000
         self.MAX_BETA = 1000
 
