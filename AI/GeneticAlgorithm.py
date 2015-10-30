@@ -27,7 +27,7 @@ class AIPlayer(Player):
     # #
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "Gen Algorithm")
-        self.MAX_DEPTH = 3
+        self.MAX_DEPTH = 2
         self.MIN_ALPHA = -1000
         self.MAX_BETA = 1000
         self.currentPopulation = []
@@ -188,6 +188,8 @@ class AIPlayer(Player):
                 x = place % 10
                 y = int(place / 10)
                 moves.append((x, y))
+
+            self.playerAnthill = moves[0]
 
         #Phase 2
         else:
@@ -430,28 +432,82 @@ class AIPlayer(Player):
     #
     # Return: Score - a number between 0 and 1 that depicts how good a game state is for our AI
     # #
-    def evaluateState(self, gameState):
-        opponentId = self.getOpponentId(gameState.whoseTurn)
-        enemyInv = gameState.inventories[opponentId]
-        # ourInv = gameState.inventories[self.playerId]
-        ourInv = gameState.inventories[gameState.whoseTurn]
-        if self.checkIfWon(ourInv, enemyInv):
-            return 1.0
-        elif self.checkIfLose(ourInv, enemyInv):
+    # def evaluateState(self, gameState):
+        # opponentId = self.getOpponentId(gameState.whoseTurn)
+        # enemyInv = gameState.inventories[opponentId]
+        # # ourInv = gameState.inventories[self.playerId]
+        # ourInv = gameState.inventories[gameState.whoseTurn]
+        # if self.checkIfWon(ourInv, enemyInv):
+        #     return 1.0
+        # elif self.checkIfLose(ourInv, enemyInv):
+        #     return 0.0
+        #
+        # sumScore = 0
+        # sumScore += self.evalNumAnts(ourInv, enemyInv)
+        # sumScore += self.evalType(ourInv)
+        # sumScore += self.evalAntsHealth(ourInv, enemyInv)
+        # sumScore += self.evalFood(ourInv, enemyInv)
+        # sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
+        # sumScore += self.evalWorkerCarrying(gameState, ourInv)
+        # sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
+        # sumScore += self.evalQueenPosition(ourInv)
+        #
+        # score = sumScore/8  # divide by number of catagories to
+        # # print score
+        # return score
+
+    ##
+    # evaluateState
+    #
+    # Description: Evaluates how "good" a state is based on whose turn it is and
+    #   what is on the board
+    #
+    # Parameters:
+    #   state - The GameState to evaluate
+    #
+    # Return: A float between 0.0 (loss) and 1.0 (victory)
+    ##
+    def evaluateState(self, state):
+        # local constants for adjusting weights of evaluation
+        QUEEN_EDGE_MAP_WEIGHT = 0.01
+        BUILD_WORKER_WEIGHT = 0.1
+        MOVE_TOWARDS_QUEEN_WEIGHT = 0.005
+        QUEEN_HEALTH_WEIGHT = 0.025
+
+        # get some references for use later
+        playerInv = state.inventories[state.whoseTurn]
+        enemyInv = state.inventories[1 - state.whoseTurn]
+        enemyQueen = enemyInv.getQueen()
+
+        # check for defeat (dead queen or enemy food victory)
+        if playerInv.getQueen() is None or enemyInv.foodCount >= 11:
             return 0.0
+        # check for victory (dead enemy queen or food victory)
+        if enemyQueen is None or playerInv.foodCount >= 11:
+            return 1.0
 
-        sumScore = 0
-        sumScore += self.evalNumAnts(ourInv, enemyInv)
-        sumScore += self.evalType(ourInv)
-        sumScore += self.evalAntsHealth(ourInv, enemyInv)
-        sumScore += self.evalFood(ourInv, enemyInv)
-        sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
-        sumScore += self.evalWorkerCarrying(gameState, ourInv)
-        sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
-        sumScore += self.evalQueenPosition(ourInv)
+        # start the score at a semi-neutral value
+        score = 0.4
 
-        score = sumScore/8  # divide by number of catagories to
-        # print score
+        # check each of the player's ants
+        for ant in playerInv.ants:
+            if ant.type == QUEEN:
+                # keep the queen off of the anthill
+                if ant.coords == self.playerAnthill:
+                    return 0.01
+                # keep the queen at the edge of the map
+                score -= QUEEN_EDGE_MAP_WEIGHT * ant.coords[1]
+            elif ant.type == WORKER:
+                # encourage building more workers
+                score += BUILD_WORKER_WEIGHT
+                # move workers towards queen
+                score -= MOVE_TOWARDS_QUEEN_WEIGHT * (abs(ant.coords[0] - enemyQueen.coords[0]) +
+                                                      abs(ant.coords[1] - enemyQueen.coords[1]))
+
+        # encourage damaging the enemy queen
+        score += QUEEN_HEALTH_WEIGHT * (UNIT_STATS[QUEEN][HEALTH] - enemyQueen.health)
+
+        # return the evaluation score of the state
         return score
 
     # #
