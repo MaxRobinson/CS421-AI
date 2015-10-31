@@ -45,7 +45,12 @@ class AIPlayer(Player):
         self.turnNumber = 0
 
     ##
+    # initGenes()
+    # Description:
+    #   Initializes the genes of a population. Selecting random values to init the genes too.
     #
+    # Parameters:
+    #   None
     ##
     def initGenes(self):
         self.fitness = []
@@ -58,19 +63,37 @@ class AIPlayer(Player):
             self.fitness.append(0)
             self.currentPopulation.append(gene)
 
+    # #
+    # resetFitness
+    # Description: resets the fitness array to be all 0
+    #
+    # Parameters:
+    #   none
+    # #
     def resetFitness(self):
         for i in range(0, self.POPULATIONSIZE):
             self.fitness[i] = 0
 
-
+    # #
+    # mate()
+    # Description: Given two parent genes, mate them such that they exchange parts of them
+    #   across a pivot. Then apply a random chance to change one part of the gene.
+    #
+    # Parameters:
+    #    parent1 - a gene in the current population
+    #    parent2 - a gene in the current population different from parent 1
+    # #
     def mate(self, parent1, parent2):
         pivot = random.randint(0, self.GENELENGTH)
 
+        # two temps for parts of array after pivot
         temp1 = parent1[pivot:]
         temp2 = parent2[pivot:]
         child1 = parent1[0:pivot] + temp2
         child2 = parent2[0:pivot] + temp1
 
+        # applies a random chance for mutation for each gene.
+        # 1 in mutationRate
         randomChance = random.randint(0, self.MutationRate)
         if randomChance == 1:
             randomPosition = random.randint(0, self.GENELENGTH-1)
@@ -82,6 +105,14 @@ class AIPlayer(Player):
 
         return (child1, child2)
 
+    # #
+    # generateNextGen
+    # Description: Generates a new generation of genes based on the fitness level of the previous genes
+    #   the genes have a weighted chance of being picked to be mated based on fitness level
+    #
+    # Parameters:
+    #    None
+    # #
     def generateNextGen(self):
 
         newPopulation = []
@@ -102,12 +133,14 @@ class AIPlayer(Player):
 
             parent2 = parent1
             index2 = index1
+
+            # choose a different parent from parent 1
             while(parent2 == parent1):
                 index2 = indiciesAsWeighted[random.randint(0, len(indiciesAsWeighted)-1)]
                 parent2 = self.currentPopulation[index2]
 
 
-            print "Mating: ", index1, " ", index2
+            # mate the parents
             children = self.mate(parent1, parent2)
 
             newPopulation.append(children[0])
@@ -115,25 +148,17 @@ class AIPlayer(Player):
 
         self.currentPopulation = newPopulation
 
-            # # get the indexes of the parents to mate.
-            # firstParentIndex = self.fitness.index(max(self.fitness))
-            # self.fitness[firstParentIndex] = -sys.maxint
-            # secondParentIndex = self.fitness.index(max(self.fitness))
-            # self.fitness[secondParentIndex] = -sys.maxint
-            #
-            # # get parent genes
-            # parent1 = self.currentPopulation[firstParentIndex]
-            # parent2 = self.currentPopulation[secondParentIndex]
-            #
-            # # mate
-            # children = self.mate(parent1, parent2)
-            #
-            # # replace parents
-            # self.currentPopulation[firstParentIndex] = children[0]
-            # self.currentPopulation[secondParentIndex] = children[1]
-
         return
 
+    ##
+    # registerWin(hasWon):
+    # Description: Allows for population management after a win has occurred.
+    #   After a win check if it's time to move onto the next gene.
+    #   If so move on. If finished all of the population mate the
+    #   genes to get the next population
+    #
+    # Parameter: hasWon
+    ##
     def registerWin(self, hasWon):
         self.numGamesForGene += 1
         self.turnNumber = 0
@@ -179,11 +204,13 @@ class AIPlayer(Player):
             numToPlace = 11
             currentGene = copy.deepcopy(self.currentPopulation[self.populationIndex])
 
+            # select the gene with the min values in the gene
             for i in range(0, numToPlace):
                 listOfPlacements.append(currentGene.index(min(currentGene)))
+                # set the value to max value so that it will not be selected again
                 currentGene[currentGene.index(min(currentGene))] = sys.maxint
 
-
+            # map the x and y coords from the gene based on index
             for place in listOfPlacements:
                 x = place % 10
                 y = int(place / 10)
@@ -196,11 +223,13 @@ class AIPlayer(Player):
             numToPlace = 2
             currentGene = copy.deepcopy(self.currentPopulation[self.populationIndex])
 
+            # select the gene with the max values in the gene
             for i in range(0, numToPlace):
                 listOfPlacements.append(currentGene.index(max(currentGene)))
+                # set the value to min value so that it will not be selected again
                 currentGene[currentGene.index(max(currentGene))] = -sys.maxint
 
-
+            # change index to x y coords.
             for place in listOfPlacements:
                 x = place % 10
                 y = int(place / 10) + 6 # accounts for offset into enemy territory
@@ -423,44 +452,12 @@ class AIPlayer(Player):
                     ant.carrying = False
                     ourInventory.foodCount += 1
 
-    # #
-    # evaluateState
-    # Description:
-    #
-    # Parameters:
-    #    gameState - The state being edited.
-    #
-    # Return: Score - a number between 0 and 1 that depicts how good a game state is for our AI
-    # #
-    # def evaluateState(self, gameState):
-        # opponentId = self.getOpponentId(gameState.whoseTurn)
-        # enemyInv = gameState.inventories[opponentId]
-        # # ourInv = gameState.inventories[self.playerId]
-        # ourInv = gameState.inventories[gameState.whoseTurn]
-        # if self.checkIfWon(ourInv, enemyInv):
-        #     return 1.0
-        # elif self.checkIfLose(ourInv, enemyInv):
-        #     return 0.0
-        #
-        # sumScore = 0
-        # sumScore += self.evalNumAnts(ourInv, enemyInv)
-        # sumScore += self.evalType(ourInv)
-        # sumScore += self.evalAntsHealth(ourInv, enemyInv)
-        # sumScore += self.evalFood(ourInv, enemyInv)
-        # sumScore += self.evalQueenThreat(gameState, ourInv, enemyInv)
-        # sumScore += self.evalWorkerCarrying(gameState, ourInv)
-        # sumScore += self.evalWorkerNotCarrying(gameState, ourInv)
-        # sumScore += self.evalQueenPosition(ourInv)
-        #
-        # score = sumScore/8  # divide by number of catagories to
-        # # print score
-        # return score
-
     ##
     # evaluateState
     #
     # Description: Evaluates how "good" a state is based on whose turn it is and
     #   what is on the board
+    #   Credit: Kai Jorgensen
     #
     # Parameters:
     #   state - The GameState to evaluate
