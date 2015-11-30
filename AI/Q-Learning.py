@@ -245,20 +245,6 @@ class state:
             return True
 
     def __hash__(self):
-        bigList = []
-        bigList.append(self.antPositionList)
-
-        bigList.append(self.myHillLocation)
-        bigList.append(self.myTunnelLocations)
-
-        bigList.append(self.enemyHillLocation)
-        bigList.append(self.enemyTunnelLocations)
-
-        bigList.append(self.anythingOnHill)
-
-        bigList.append(self.myFoodCount)
-        bigList.append(self.enemyFoodCount)
-
         return hash((tuple(self.antPositionList), self.myHillLocation,
                      tuple(self.myTunnelLocations), self.enemyHillLocation,
                      tuple(self.enemyTunnelLocations), self.anythingOnHill,
@@ -332,6 +318,10 @@ class UnitTests:
             print("Actual State: ")
             print(','.join("%s: %s" % item for item in attrs2.items()))
 
+    def testDictionaryAndState(self):
+        dictThing = {}
+        dictThing[self.state] = 15
+        print(dictThing[self.state])
 
 
 
@@ -441,3 +431,4 @@ unitTest.testGeneralizeCoords()
 unitTest.testStateHash()
 unitTest.testStateEquality()
 unitTest.testCompressState()
+unitTest.testDictionaryAndState()
