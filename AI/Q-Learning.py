@@ -31,11 +31,18 @@ class AIPlayer(Player):
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "TD-Learning")
         self.memoryFileName = "TD-Learning.txt"
+        self.alphaValueFileName = "TD-AlphaValue.txt"
+
+        self.alphaExponentNumber = -0.2
+        self.gameNumber = 1
+        self.gama = .8
+        self.alpha = .99
 
         # key: HASH VALUE of a given state, Value: utility or list of Utility and EligibilityTrace value
         self.stateUtilityMemory = {}
+
         # If we have an existing memory, Load it!!! If not don't do anything.
-        if(os.path.isfile(self.memoryFileName)):
+        if(os.path.isfile("TD-Learning.txt")):
             self.readMemory()
 
     ##
@@ -228,6 +235,21 @@ class AIPlayer(Player):
     def generalizeCoords(self, coords):
         return (coords[0]/2, coords[1]/2)
 
+    ##
+    # getReward
+    #
+    # Parameter:
+    #   state - the state that is being examined for the reward.
+    #
+    # Return:
+    #   rewardValue - the value of the reward based on the state
+    #
+    ##
+    def getReward(self, state):
+        # +1 for win
+        # -1 for loss
+        # else: -0.01
+        print("reward")
 
     ##
     # saveMemory
