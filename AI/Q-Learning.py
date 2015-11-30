@@ -1,6 +1,7 @@
 __author__ = 'MaxRobinson'
 import random
 import pickle
+import os
 from Player import *
 from Constants import *
 from Construction import CONSTR_STATS
@@ -28,7 +29,14 @@ class AIPlayer(Player):
     #   inputPlayerId - The id to give the new player (int)
     ##
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "Random")
+        super(AIPlayer,self).__init__(inputPlayerId, "TD-Learning")
+        self.memoryFileName = "TD-Learning.txt"
+
+        # key: HASH VALUE of a given state, Value: utility or list of Utility and EligibilityTrace value
+        self.stateUtilityMemory = {}
+        # If we have an existing memory, Load it!!! If not don't do anything.
+        if(os.path.isfile(self.memoryFileName)):
+            self.readMemory()
 
     ##
     #getPlacement
@@ -110,6 +118,14 @@ class AIPlayer(Player):
         #Attack a random enemy.
         return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
 
+    ##
+    # registerWin():
+    # Description: Upon a game ending, save the AI's memory to file.
+    #
+    # Parameter: hasWon - a boolean saying if we have won or not.
+    ##
+    def registerWin(self, hasWon):
+        self.saveMemory()
 
     ##
     # consolidateState
@@ -122,8 +138,10 @@ class AIPlayer(Player):
     #             ant hill, thus needing the boolean to say if this is true or not.
     #
     # Parameters:
-    #     currentState: the state to compress.
+    #   currentState - the state to compress.
     #
+    # Return:
+    #   compressedState - a fully compressed state that has only the info needed for the AI
     ##
     def consolidateState(self, currentState):
         myInventory = currentState.inventories[self.playerId]
@@ -171,7 +189,16 @@ class AIPlayer(Player):
 
 
 
-    ## TODO
+    ##
+    # anythingOnHill
+    #   This returns a true/false value that says if there is anything that is on the "True"
+    #   location of the AI's antHill.
+    #
+    #   NOTE: This does not look at the compressed version of the state
+    #
+    # Return:
+    #   onHillValue - true if something is on the hill, false if not.
+    ##
     def anythingOnHill(self, myInventory, enemyInventory):
         hillLocation = myInventory.getAnthill().coords
         onHillValue = False
@@ -200,6 +227,27 @@ class AIPlayer(Player):
     ##
     def generalizeCoords(self, coords):
         return (coords[0]/2, coords[1]/2)
+
+
+    ##
+    # saveMemory
+    #   saves the stateUtilityMemory out to a file using pickle serialization
+    ##
+    def saveMemory(self):
+        outputFile = file(self.memoryFileName, "w")
+        pickle.dump(self.stateUtilityMemory, outputFile)
+        outputFile.close()
+
+    ##
+    # readMemory
+    #   reads from an input file and sets the value of the AI's "Memory" to what was in the output file
+    #
+    #   NOTE: !!!!! MODIFIES stateUtilityMemory !!!!!
+    ##
+    def readMemory(self):
+        inputFile = file(self.memoryFileName, "r")
+        self.stateUtilityMemory = pickle.load(inputFile)
+        inputFile.close()
 
 
 ##
@@ -318,12 +366,21 @@ class UnitTests:
             print("Actual State: ")
             print(','.join("%s: %s" % item for item in attrs2.items()))
 
+
     def testDictionaryAndState(self):
         dictThing = {}
-        dictThing[self.state] = 15
-        print(dictThing[self.state])
+        dictThing[self.state.__hash__()] = 15
+        self.state.myFoodCount = 1
+        dictThing[self.state.__hash__()] = 10
+        print("Testing dictionary usage: ", dictThing)
 
+    def testMemoryWrite(self):
+        self.player.stateUtilityMemory[self.state.__hash__()] = 10
+        self.player.saveMemory()
 
+    def testMemoryRead(self):
+        self.player.readMemory()
+        print("Testing READ from file: ",  self.player.stateUtilityMemory)
 
     def setupState(self):
         board = [[Location((col, row)) for row in xrange(0, BOARD_LENGTH)] for col in xrange(0, BOARD_LENGTH)]
@@ -432,3 +489,7 @@ unitTest.testStateHash()
 unitTest.testStateEquality()
 unitTest.testCompressState()
 unitTest.testDictionaryAndState()
+
+##test read and write ##
+unitTest.testMemoryWrite()
+unitTest.testMemoryRead()
