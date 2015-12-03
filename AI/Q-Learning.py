@@ -14,7 +14,7 @@ from AIPlayerUtils import *
 ## Global Constants
 INIT_ET = 1.0
 
-STATE_INDEX = 0
+REWARD_INDEX = 0
 UTILITY_INDEX = 1
 ET_INDEX = 2
 
@@ -48,22 +48,24 @@ class AIPlayer(Player):
         self.gamma = .8
         self.alpha = .999
         self.lambdaValue = .95
-        self.epsilon = .99
+        self.epsilon = .999
+
+        self.PreviousState = None
 
         # key: HASH VALUE of a given compressed State,
         # Value: list [ compressedState, Utility value, EligibilityTrace value]
         self.stateUtilityMemory = {}
 
         # If we have an existing memory, Load it!!! If not don't do anything.
-        if(os.path.isfile("robinsom16_TD-Learning.txt")):
+        if(os.path.isfile("../robinsom16_TD-Learning.txt")):
             self.readMemory()
 
         # If we have an alpha value, Load it!!! If not don't do anything.
-        if(os.path.isfile("robinsom16_TD-AlphaValue.txt")):
+        if(os.path.isfile("../robinsom16_TD-AlphaValue.txt")):
             self.readAlphaValue()
 
         # If we have an alpha value, Load it!!! If not don't do anything.
-        if(os.path.isfile("robinsom16_TD-EpsilonValue.txt")):
+        if(os.path.isfile("../robinsom16_TD-EpsilonValue.txt")):
             self.readEpsilonValue()
 
     ##
@@ -82,41 +84,32 @@ class AIPlayer(Player):
     ##
     def getPlacement(self, currentState):
         numToPlace = 0
-        #implemented by students to return their next move
-        if currentState.phase == SETUP_PHASE_1:    #stuff on my side
-            numToPlace = 11
-            moves = []
+        # implemented by students to return their next move
+        if currentState.phase == SETUP_PHASE_1:    # stuff on my side
+            locations = []
+
+            #  place ant hills
+            antHillMove = (2,1)
+            antTunelMove = (7,1)
+            locations.append(antHillMove)
+            locations.append(antTunelMove)
+
+            numToPlace = 9
             for i in range(0, numToPlace):
-                move = None
-                while move == None:
-                    #Choose any x location
-                    x = random.randint(0, 9)
-                    #Choose any y location on your side of the board
-                    y = random.randint(0, 3)
-                    #Set the move if this space is empty
-                    if currentState.board[x][y].constr == None and (x, y) not in moves:
-                        move = (x, y)
-                        #Just need to make the space non-empty. So I threw whatever I felt like in there.
-                        currentState.board[x][y].constr == True
-                moves.append(move)
-            return moves
-        elif currentState.phase == SETUP_PHASE_2:   #stuff on foe's side
-            numToPlace = 2
-            moves = []
-            for i in range(0, numToPlace):
-                move = None
-                while move == None:
-                    #Choose any x location
-                    x = random.randint(0, 9)
-                    #Choose any y location on enemy side of the board
-                    y = random.randint(6, 9)
-                    #Set the move if this space is empty
-                    if currentState.board[x][y].constr == None and (x, y) not in moves:
-                        move = (x, y)
-                        #Just need to make the space non-empty. So I threw whatever I felt like in there.
-                        currentState.board[x][y].constr == True
-                moves.append(move)
-            return moves
+                move = (i,3)
+                currentState.board[i][3].constr == True
+                locations.append(move)
+            return locations
+
+        elif currentState.phase == SETUP_PHASE_2:   # stuff on foe's side
+            # set opponent id
+            opponentId = PLAYER_ONE
+            if self.playerId is PLAYER_ONE:
+                opponentId = PLAYER_TWO
+
+            locations = self.findFurthestSpacesForFood(currentState, opponentId)
+            return locations
+
         else:
             return [(0, 0)]
 
@@ -201,32 +194,51 @@ class AIPlayer(Player):
 
     ## TODO
     def updateMemory(self, compressedState):
+
         # if the current state is not in memory, add it to memory, and give the utility the reward value of the state
         if compressedState.__hash__() not in self.stateUtilityMemory:
-            self.stateUtilityMemory[compressedState.__hash__()] = [compressedState, self.getReward(compressedState), INIT_ET]
+            # self.stateUtilityMemory[compressedState.__hash__()] = [self.getReward(compressedState), self.getReward(compressedState), INIT_ET]
+            self.stateUtilityMemory[compressedState.__hash__()] = [self.getReward(compressedState), self.getReward(compressedState), INIT_ET]
 
         # get the values stored for current state -
         currentStateUtilAndEt = self.stateUtilityMemory[compressedState.__hash__()]
 
+        # reset et 3 SHOULD BE ONE JUST LEFT
+        # currentStateUtilAndEt[ET_INDEX] = 1
+
+        # Calculate Delta & update ET value for past state
+        # needed for Eligibility Trace.
+        delta = 0
+        if self.PreviousState is None:
+            self.PreviousState = compressedState
+            delta = 0
+            # no prior ET to Update if no previous state
+        else:
+            #We have a previous state
+            delta = self.getReward(self.PreviousState) + self.gamma * currentStateUtilAndEt[UTILITY_INDEX] - \
+                    self.stateUtilityMemory[self.PreviousState.__hash__()][UTILITY_INDEX]
+
+            # update the previous State's ET to 1
+            self.stateUtilityMemory[self.PreviousState.__hash__()][ET_INDEX] = INIT_ET
+
+
         # update all states Utilities using Eligibility Trace.
         for key in self.stateUtilityMemory:
             utilAndEt = self.stateUtilityMemory[key]
-            state = utilAndEt[STATE_INDEX]
+            stateReward = utilAndEt[REWARD_INDEX]
             stateUtil = utilAndEt[UTILITY_INDEX]
             stateEt = utilAndEt[ET_INDEX]
 
             # update the Util Value of all states
             # equation: where s' is my current state
-            # U(s) = U(s) + alpha(reward(s) + gama(U(s')) - U(s))
-            utilAndEt[UTILITY_INDEX] = stateUtil + stateEt * self.alpha*(self.getReward(state) +
-                                           self.gamma*(currentStateUtilAndEt[UTILITY_INDEX]) - stateUtil )
+            # U(s) = U(s) + alpha * eligibility Trace * delta
+            utilAndEt[UTILITY_INDEX] = stateUtil + stateEt * self.alpha * delta
 
             # update the ET value of all states
             utilAndEt[ET_INDEX] = stateEt * self.lambdaValue * self.gamma
 
-        # if we have seen this state before, Reset the ET value
-        if compressedState.__hash__() in self.stateUtilityMemory:
-            currentStateUtilAndEt[ET_INDEX] = 1
+        # LAST THING
+        self.PreviousState = compressedState
 
         return
     ##
@@ -385,20 +397,6 @@ class AIPlayer(Player):
     # Return:
     #   rewardValue - the value of the reward based on the state
     ##
-    # def getReward(self, gameOver, hasWon):
-    #     # +1 for win
-    #     # -1 for loss
-    #     # else: -0.01
-    #     if(gameOver):
-    #         if(hasWon):
-    #             return 1.0
-    #         else:
-    #             return -1.0
-    #     else:
-    #         return -0.01
-
-
-
     def getReward(self, compressedState):
         # +1 for win
         # -1 for loss
@@ -445,7 +443,7 @@ class AIPlayer(Player):
     #   NOTE: !!!!! MODIFIES stateUtilityMemory !!!!!
     ##
     def readMemory(self):
-        inputFile = file(self.memoryFileName, "r")
+        inputFile = file("../" + self.memoryFileName, "r")
         self.stateUtilityMemory = pickle.load(inputFile)
         inputFile.close()
 
@@ -456,7 +454,7 @@ class AIPlayer(Player):
     #   (Aka. pick up where it left off).
     ##
     def readAlphaValue(self):
-        inputFile = file(self.alphaValueFileName, "r")
+        inputFile = file("../" + self.alphaValueFileName, "r")
         self.alpha = float(inputFile.read())
         inputFile.close()
 
@@ -466,7 +464,7 @@ class AIPlayer(Player):
     #   (Aka. pick up where it left off).
     ##
     def readEpsilonValue(self):
-        inputFile = file(self.epsilonValueFileName, "r")
+        inputFile = file("../" + self.epsilonValueFileName, "r")
         self.epsilon = float(inputFile.read())
         inputFile.close()
 
@@ -655,6 +653,62 @@ class AIPlayer(Player):
         else:
             return False
 
+
+    # #
+    # findFurthestSpacesForFood
+    #
+    # Description: called during step two of the setup phase
+    #   to find the furthest places from the opponents Anthill
+    #   and tunnel that we can place food.
+    #
+    # Parameters:
+    #    currentState - the state of the game at this point in time.
+    #    opponentId - the id of the opponent.
+    #
+    # Return: The locations for the food to be placed.
+    # #
+    def findFurthestSpacesForFood(self, currentState, opponentId):
+        location = []
+        distanceToConstruct = []
+
+        # identify the location of the anthill
+        anthillLocation = getConstrList(currentState, opponentId, [ANTHILL])[0].coords
+        tunnelLocation = getConstrList(currentState, opponentId, [TUNNEL])[0].coords
+
+        # identify the location farthest from an anthill or tunnel
+        # loop over all squares on opponents side of board
+        for i in range(0, 10):
+            for j in range(6, 10):
+                coordinate = (i, j)
+                if getConstrAt(currentState, coordinate) is not None:
+                    continue
+                distance1 = stepsToReach(currentState, anthillLocation, coordinate)
+                distance2 = stepsToReach(currentState, tunnelLocation, coordinate)
+                distance = min(distance1, distance2)
+
+                distanceToConstruct.append((coordinate, distance))
+
+        # identify the 2 coordinates with the most distance
+        greatestDistance = distanceToConstruct[0]
+        secondGreatestDistance = distanceToConstruct[1]
+        for square in distanceToConstruct:
+            if square == greatestDistance or square == secondGreatestDistance:
+                continue
+            if square[1] > greatestDistance[1]:
+                temp = greatestDistance
+                greatestDistance = square
+                if temp[1] > secondGreatestDistance[1]:
+                    secondGreatestDistance = temp
+            elif square[1] > secondGreatestDistance[1]:
+                temp = secondGreatestDistance
+                secondGreatestDistance = square
+                if temp[1] > greatestDistance[1]:
+                    greatestDistance = temp
+
+        location.append(greatestDistance[0])
+        location.append(secondGreatestDistance[0])
+        return location
+
 ##
 # class State:
 #  A state has the following attributes.
@@ -699,8 +753,9 @@ class state:
             self.enemyFoodCount == other.enemyFoodCount and \
             self.hasWon == other.hasWon and \
             self.hasLost == other.hasLost:
-
             return True
+        else:
+            return False
 
     def __hash__(self):
         return hash((tuple(self.antPositionList), self.myHillLocation,
@@ -904,5 +959,5 @@ unitTest.testCompressState()
 unitTest.testDictionaryAndState()
 
 ##test read and write ##
-unitTest.testMemoryWrite()
-unitTest.testMemoryRead()
+# unitTest.testMemoryWrite()
+# unitTest.testMemoryRead()
