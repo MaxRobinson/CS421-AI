@@ -38,6 +38,8 @@ class AIPlayer(Player):
     ##
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "TD-Learning")
+
+        # set up file names to read and write too.
         self.memoryFileName = "robinsom16_TD-Learning.txt"
         self.alphaValueFileName = "robinsom16_TD-AlphaValue.txt"
         self.epsilonValueFileName = "robinsom16_TD-EpsilonValue.txt"
@@ -50,6 +52,7 @@ class AIPlayer(Player):
         self.lambdaValue = .95
         self.epsilon = .999
 
+        # variable for holding the previous state.
         self.PreviousState = None
 
         # key: HASH VALUE of a given compressed State,
@@ -94,6 +97,7 @@ class AIPlayer(Player):
             locations.append(antHillMove)
             locations.append(antTunelMove)
 
+            # Place the grass for our side
             numToPlace = 9
             for i in range(0, numToPlace):
                 move = (i,3)
@@ -101,12 +105,13 @@ class AIPlayer(Player):
                 locations.append(move)
             return locations
 
+        # otherwise place food.
         elif currentState.phase == SETUP_PHASE_2:   # stuff on foe's side
             # set opponent id
             opponentId = PLAYER_ONE
             if self.playerId is PLAYER_ONE:
                 opponentId = PLAYER_TWO
-
+            # find the locations for the food.
             locations = self.findFurthestSpacesForFood(currentState, opponentId)
             return locations
 
@@ -151,6 +156,10 @@ class AIPlayer(Player):
     #           getting to that state.
     #       If it is not in our memory we skip it.
     #   If at the end, we have not found any states that match in our memory, make a random move.
+    #
+    # Parameter: CurrentState - an uncompressed state that is the current state that the AI is in.
+    # Return:
+    #   move - The best move according to what we've learned OR a random move based on epsilon values.
     ##
     def getBestMove(self, currentState):
 
@@ -192,7 +201,29 @@ class AIPlayer(Player):
         return move
 
 
-    ## TODO
+    ##
+    # updateMemory
+    #   Description:
+    #       !!!! NOTE: THIS METHOD UPDATES THE self.stateUtilityMemory CLASS VARIABLE  !!!!!!
+    #       This method updates the AI's memory, based on a compressed state.
+    #       This method implements an Eligibility Trace method for TD Learning.
+    #       The memory is updated as follows:
+    #           1) check to see if the current compressed state is in the AI's memory(memory from here on)
+    #                   If not, add it to the memory
+    #           2) Get the values stored in the memory for the current compressed state,
+    #                   (reward for that state, the Utility value, eligibility trace value)
+    #           3) Calculate the delta value needed for the eligibility trace updates
+    #                   As this relies on having a previous state, we check if we have one, if no delta value is 0
+    #           4) Update the Utility for each state in the Memory according to the TD equation with eligibility trace
+    #                   See comments in code for the equation
+    #           5) While updating the Utility values for each state, update the ET value according to \
+    #               ETvalue = ETvalue * lambdaValue * gama
+    #           6) After all the updating, set the previous state to the current state (Both are compressed states)
+    #
+    #  Parameters: CompressedState - A compressed representation of the current state.
+    #
+    #  Return: Nothing.
+    ##
     def updateMemory(self, compressedState):
 
         # if the current state is not in memory, add it to memory, and give the utility the reward value of the state
@@ -673,14 +704,18 @@ class AIPlayer(Player):
         tunnelLocation = getConstrList(currentState, opponentId, [TUNNEL])[0].coords
 
         # identify the location farthest from an anthill or tunnel
-        # loop over all squares on opponents side of board
+
+        # loop over all squares on opponents side of board and give it a distance from the opponent ant hill and tunnel
+        # the distance will be the minimum of the two distances.
         for i in range(0, 10):
             for j in range(6, 10):
                 coordinate = (i, j)
                 if getConstrAt(currentState, coordinate) is not None:
                     continue
+                # get distances from this location to the anthill and tunnel
                 distance1 = stepsToReach(currentState, anthillLocation, coordinate)
                 distance2 = stepsToReach(currentState, tunnelLocation, coordinate)
+                # get the smaller of the two distances from the opponent tunnel and ant hill
                 distance = min(distance1, distance2)
 
                 distanceToConstruct.append((coordinate, distance))
@@ -688,14 +723,19 @@ class AIPlayer(Player):
         # identify the 2 coordinates with the most distance
         greatestDistance = distanceToConstruct[0]
         secondGreatestDistance = distanceToConstruct[1]
+
+        # find the two position that are the farthest from the anthill and tunnel
         for square in distanceToConstruct:
             if square == greatestDistance or square == secondGreatestDistance:
                 continue
+            # check if greater than first distance
             if square[1] > greatestDistance[1]:
                 temp = greatestDistance
                 greatestDistance = square
+                # check if the initial "greatest" distance is grater than the second largest distance.
                 if temp[1] > secondGreatestDistance[1]:
                     secondGreatestDistance = temp
+            # check if greater than second distance
             elif square[1] > secondGreatestDistance[1]:
                 temp = secondGreatestDistance
                 secondGreatestDistance = square
@@ -715,12 +755,33 @@ class AIPlayer(Player):
 #       * Any ant could be on the "same" generalized location as the ant hill but not ACTUALLY be on the
 #             ant hill, thus needing the boolean to say if this is true or not.
 #   - FOOD COUNT for both players
+#   - hasWon: used to say if we have one the game.
+#   - hasLost: used to say if we have lost the game.
+#       (The combination of two tells of if we have won, if we've lost, or if they are both false,
+#           the game is still going)
+#       This is used for the reward function.
 #
 ##
 class state:
 
 
-    ## TODO ##
+    ##
+    # __init__
+    #   initialize the class instance variables
+    #   antPositionList: Compressed position of all of the ants in the game, including queens.
+    #   myHillLocation: Tuple - Compressed location of AI's ant hill
+    #   myTunnelLocations: List - Compressed locations of AI's tunnels
+    #   enemyHillLocation: Tuple - Compressed location of enemy's ant hill
+    #   myTunnelLocations: List - Compressed locations of enemy's tunnels
+    #
+    #   anythingOnHill: boolean of if something is the AI's hill
+    #
+    #   myFoodCount: int of our food
+    #   enemyFoodCount: int of enemy food
+    #
+    #   hasWon: boolean
+    #   hasLost: boolean
+    ##
     def __init__(self):
         self.antPositionList = []
 
@@ -738,7 +799,14 @@ class state:
         self.hasWon = False
         self.hasLost = False
 
-
+    ##
+    # __eq__
+    #   Compares two states to see if they are equal by comparing the values of their
+    #   class variables.
+    #   Note: transforming the lists into sets allow for an accurate and correct equals on the lists.
+    #
+    #   Return: True if equal, False if not.
+    ##
     def __eq__(self, other):
         if set(self.antPositionList) == set(other.antPositionList) and \
             self.myHillLocation == other.myHillLocation and \
@@ -754,6 +822,13 @@ class state:
         else:
             return False
 
+
+    ##
+    # __hash__
+    #   Using the class variables, convert the lists into tuple, and then use the built in hash function
+    #   to hash all of the variables and return a hashed value.
+    #   (This is used for making a key into a dictionary)
+    ##
     def __hash__(self):
         return hash((tuple(self.antPositionList), self.myHillLocation,
                      tuple(self.myTunnelLocations), self.enemyHillLocation,
@@ -768,15 +843,28 @@ from Inventory import *
 from Construction import *
 from Ant import *
 
+
+##
+# UnitTests:
+#   This is a class that holds unit tests for testing the AI methods.
+##
 class UnitTests:
 
-
+    ##
+    # __init__:
+    #   Set up the state.
+    ##
     def __init__(self):
         self.player = AIPlayer(PLAYER_ONE)
         self.state = state()
 
         print("Start Unit Tests: ")
 
+
+    ##
+    # testGeneralizeCoords
+    #   tests that generalizeCoords method works.
+    ##
     def testGeneralizeCoords(self):
         genCord = self.player.generalizeCoords((2,3))
         if genCord == (1,1):
@@ -784,12 +872,22 @@ class UnitTests:
         else:
             print("GenCoords: BAD!")
 
+
+    ##
+    # testStateEquality
+    #   Tests that two states are equal
+    ##
     def testStateEquality(self):
         if(self.state.__eq__(self.state)):
             print("State Equality: Equal")
         else:
             print("State Equality: Equal")
 
+
+    ##
+    # testStateHash
+    #   tests that two different states hash to different values.
+    ##
     def testStateHash(self):
         print("Init Hash Value: ", self.state.__hash__())
 
@@ -799,14 +897,19 @@ class UnitTests:
         temp.add(self.state)
         print("Added a state to a set")
 
-
+    ##
+    # testCompressedState
+    #   This sets ups up a state and then consolidates it.
+    #   It then tests it against a state I compress myself.
+    ##
     def testCompressState(self):
         print("compressing State")
         tempState = self.setupState()
 
-
+        # compressed state using consolidated
         compressedState = self.player.consolidateState(tempState)
 
+        # version to test against
         expectedCompressedState = state()
         expectedCompressedState.myHillLocation = (0,1)
         expectedCompressedState.myTunnelLocations = [(0,1)]
@@ -831,7 +934,10 @@ class UnitTests:
             print("Actual State: ")
             print(','.join("%s: %s" % item for item in attrs2.items()))
 
-
+    ##
+    # testDictionaryAndState
+    #   tests that we can use the Hash value of a state as a key to a dictionary
+    ##
     def testDictionaryAndState(self):
         dictThing = {}
         dictThing[self.state.__hash__()] = 15
@@ -839,14 +945,26 @@ class UnitTests:
         dictThing[self.state.__hash__()] = 10
         print("Testing dictionary usage: ", dictThing)
 
+    ##
+    # testMemoryWrite
+    #   tests that we can write the Memory out to a file.
+    ##
     def testMemoryWrite(self):
         self.player.stateUtilityMemory[self.state.__hash__()] = 10
         self.player.saveMemory()
 
+    ##
+    # testMemoryRead
+    #   tests that we can read from memory and have a correct Memory.
+    ##
     def testMemoryRead(self):
         self.player.readMemory()
         print("Testing READ from file: ",  self.player.stateUtilityMemory)
 
+    ##
+    # setupState
+    #   sets up a state
+    ##
     def setupState(self):
         board = [[Location((col, row)) for row in xrange(0, BOARD_LENGTH)] for col in xrange(0, BOARD_LENGTH)]
         p1Inventory = Inventory(PLAYER_ONE, [], [], 0)
@@ -948,6 +1066,7 @@ class UnitTests:
         return True
 
 
+# run the unit tests
 unitTest = UnitTests()
 unitTest.testGeneralizeCoords()
 unitTest.testStateHash()
