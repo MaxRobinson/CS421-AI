@@ -203,9 +203,6 @@ class AIPlayer(Player):
         # get the values stored for current state -
         currentStateUtilAndEt = self.stateUtilityMemory[compressedState.__hash__()]
 
-        # reset et 3 SHOULD BE ONE JUST LEFT
-        # currentStateUtilAndEt[ET_INDEX] = 1
-
         # Calculate Delta & update ET value for past state
         # needed for Eligibility Trace.
         delta = 0
@@ -270,7 +267,7 @@ class AIPlayer(Player):
         # use the win or lose state to update the memory
         self.updateMemory(winComppressedState)
         self.alpha *= 0.999
-        self.epsilon *= 0.99
+        self.epsilon *= 0.999
 
         # save info
         self.saveMemory()
