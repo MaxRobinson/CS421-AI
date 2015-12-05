@@ -46,7 +46,7 @@ class AIPlayer(Player):
     #   PreviousState - Variable for holding the previous state.
     ##
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "TD-Learning, Final")
+        super(AIPlayer,self).__init__(inputPlayerId, "robinsom16 simard16 TD-Learning")
 
         # set up file names to read and write too.
         self.memoryFileName = "robinsom16_TD-Learning.txt"
@@ -1073,13 +1073,14 @@ class UnitTests:
         return True
 
 
+## COMMENTED OUT for turn in purposes ##
 # run the unit tests
-unitTest = UnitTests()
-unitTest.testGeneralizeCoords()
-unitTest.testStateHash()
-unitTest.testStateEquality()
-unitTest.testCompressState()
-unitTest.testDictionaryAndState()
+# unitTest = UnitTests()
+# unitTest.testGeneralizeCoords()
+# unitTest.testStateHash()
+# unitTest.testStateEquality()
+# unitTest.testCompressState()
+# unitTest.testDictionaryAndState()
 
 ##test read and write ##
 # unitTest.testMemoryWrite()
