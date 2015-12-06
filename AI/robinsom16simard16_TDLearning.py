@@ -680,7 +680,6 @@ class AIPlayer(Player):
 
         if ((state.phase == PLAY_PHASE) and
         ((state.inventories[opponentId].getQueen() == None) or
-        # (state.inventories[opponentId].getAnthill().captureHealth <= 0) or
         (state.inventories[playerId].foodCount >= FOOD_GOAL) or
         (state.inventories[opponentId].foodCount == 0 and
             len(state.inventories[opponentId].ants) == 1))):
@@ -929,10 +928,13 @@ class UnitTests:
         expectedCompressedState.hasWon = True
         expectedCompressedState.hasLost = False
 
+        # Check if equal
         if(compressedState.__eq__(expectedCompressedState)):
             print("Compression worked!!!!!!")
         else:
             print("Compression failed!!!!!!")
+
+            # print the states if they are not equal
             attrs = vars(expectedCompressedState)
             print("Expected State: ")
             print(','.join("%s: %s" % item for item in attrs.items()))
@@ -1057,19 +1059,27 @@ class UnitTests:
         for i in range(0,3):
             state1Inv = state1.inventories[i]
             state2Inv = state1.inventories[i]
+
+            # if inventory lengtsh are different then can't be the same inventory
             if len(state1Inv.constrs) != len(state2Inv.constrs):
                 return False
+
+            # if constructions aren't the same then not same state.
             for j in range(0, len(state1Inv.constrs)):
                 if state1Inv.constrs[i] != state1Inv.constrs[i]:
                     return False
+            # if state ant array lengths aren't the same, not equal.
             if i < 2:
                 if len(state1Inv.ants) != len(state2Inv.ants):
                     return False
+                # check that all of the ants are equal
                 for k in range(0, len(state1Inv.ants)):
                     if state1Inv.ants[i] != state1Inv.ants[i]:
                         return False
+                # check food count.
                 if state1Inv.foodCount != state2Inv.foodCount:
                     return False
+        # other wise they are the same state.
         return True
 
 
